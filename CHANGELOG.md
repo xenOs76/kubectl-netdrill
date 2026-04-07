@@ -1,3 +1,7 @@
+## 0.1.2 (2026-04-07)
+
+    CI: add Krew pluging manifest generation to Goreleaser's config
+
 ## 0.1.1 (2026-04-07)
 
     New Features
