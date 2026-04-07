@@ -51,11 +51,12 @@ var runCmd = &cobra.Command{
 		}
 
 		opts := k8s.PodOptions{
-			Namespace:   namespace,
-			PodName:     podName,
-			Image:       Image,
-			HostNetwork: HostNetwork,
-			Command:     Command,
+			Namespace:    namespace,
+			PodName:      podName,
+			Image:        Image,
+			HostNetwork:  HostNetwork,
+			NodeSelector: NodeSelector,
+			Command:      Command,
 		}
 
 		fmt.Printf("Creating pod %s in namespace %s...\n", podName, namespace)
