@@ -9,6 +9,7 @@ var (
 	ConfigFlags  *genericclioptions.ConfigFlags
 	DefaultImage = "ghcr.io/xenos76/netdrill:latest"
 	Image        string
+	NodeSelector map[string]string
 	Version      = "dev"
 )
 
@@ -33,4 +34,6 @@ func init() {
 	ConfigFlags.AddFlags(rootCmd.PersistentFlags())
 
 	rootCmd.PersistentFlags().StringVarP(&Image, "image", "i", DefaultImage, "The netdrill image to use")
+	rootCmd.PersistentFlags().StringToStringVar(&NodeSelector,
+		"node-selector", map[string]string{}, "node labels to use as a node selector for scheduling the netdrill pod (e.g. kubernetes.io/os=linux)")
 }

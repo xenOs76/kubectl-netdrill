@@ -11,10 +11,9 @@ in the cluster.
 
 It relies on a Docker image called `netdrill`, instead of `netshoot`.
 
-For the development phase, the image is available at
-`ghcr.io/xenos76/netdrill:latest`.
+The image is available at `ghcr.io/xenos76/netdrill:latest`.
 
-## Current Status (v0.0.1)
+## Current Status (v0.1.1)
 
 The plugin is implemented and functional, with enhanced interactive terminal
 support.
@@ -104,9 +103,9 @@ As an agent, you represent the "brain" behind this plugin. When developing:
 
 ### Roadmap
 
-- [ ] **Multi-architecture support**: Enhance `build.sh` and `GoReleaser` for
+- [x] **Multi-architecture support**: Enhance `build.sh` and `GoReleaser` for
       ARM64.
-- [ ] **Automatic Clean-up**: Ensure temporary pods are deleted even if the
+- [x] **Automatic Clean-up**: Ensure temporary pods are deleted even if the
       terminal session is forcefully closed.
-- [ ] **Custom Toolkit Selection**: Allow users to specify a list of tools to be
-      pre-installed if using a custom image.
+- [x] **Add NodeSelector option**: Allow to select the K8s node where the Pod
+      will be created using K8s Node labels.

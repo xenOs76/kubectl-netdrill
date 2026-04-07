@@ -15,11 +15,12 @@ import (
 
 // PodOptions defines options for creating a troubleshooting Pod.
 type PodOptions struct {
-	Namespace   string
-	PodName     string
-	Image       string
-	HostNetwork bool
-	Command     []string
+	Namespace    string
+	PodName      string
+	Image        string
+	HostNetwork  bool
+	Command      []string
+	NodeSelector map[string]string
 }
 
 // CreatePod creates a new Pod with the specified options.
@@ -45,6 +46,7 @@ func CreatePod(ctx context.Context, client *kubernetes.Clientset, opts PodOption
 			},
 			RestartPolicy: corev1.RestartPolicyNever,
 			HostNetwork:   opts.HostNetwork,
+			NodeSelector:  opts.NodeSelector,
 		},
 	}
 
