@@ -78,6 +78,19 @@ nix:
     # extra_install: |-
     #   # Add completions or manpages here if available in the future
 
+krews:
+  - name: netdrill
+    commit_msg_template: "Krew plugin update for {{ .ProjectName }} version {{ .Tag }}"
+
+    homepage: "https://github.com/xenOs76/kubectl-netdrill"
+    description: "kubectl-netdrill, a network troubleshooting plugin for Kubernetes."
+    short_description: "kubectl-netdrill, a network troubleshooting plugin for Kubernetes."
+    skip_upload: false
+    repository:
+      owner: xenos76
+      name: krews
+      branch: main
+
 changelog:
   sort: asc
   filters:
