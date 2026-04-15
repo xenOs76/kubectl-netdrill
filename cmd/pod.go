@@ -85,4 +85,5 @@ func init() {
 		"Ports to expose on the container (e.g., --port 80)")
 	podCmd.Flags().StringToStringVar(&EnvVars, "env", map[string]string{},
 		"Environment variables (e.g., --env KEY=VALUE)")
+	podCmd.Flags().BoolVar(&HostNetwork, "host-network", false, "Use host networking")
 }

@@ -1,6 +1,8 @@
 package k8s
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -8,6 +10,30 @@ import (
 )
 
 func TestGetClient(t *testing.T) {
+	kubeconfigContent := `apiVersion: v1
+clusters:
+- cluster:
+    server: https://127.0.0.1:6443
+    insecure-skip-tls-verify: true
+  name: test-cluster
+contexts:
+- context:
+    cluster: test-cluster
+    user: test-user
+  name: test-context
+current-context: test-context
+kind: Config
+users:
+- name: test-user
+  user:
+    token: test-token
+`
+
+	tmpDir := t.TempDir()
+	kubeconfigPath := filepath.Join(tmpDir, "kubeconfig")
+	err := os.WriteFile(kubeconfigPath, []byte(kubeconfigContent), 0600)
+	require.NoError(t, err)
+
 	tests := []struct {
 		name        string
 		configFlags *genericclioptions.ConfigFlags
@@ -22,6 +48,8 @@ func TestGetClient(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			tt.configFlags.KubeConfig = &kubeconfigPath
+
 			client, config, err := GetClient(tt.configFlags)
 			if tt.wantErr {
 				require.Error(t, err)

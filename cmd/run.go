@@ -21,7 +21,7 @@ var (
 var runCmd = &cobra.Command{
 	Use:   "run [NAME]",
 	Short: "Run an ephemeral pod for troubleshooting",
-	Long:  `Create a ephemeral pod with the netdrill image and attach to it.`,
+	Long:  `Create an ephemeral pod with the netdrill image and attach to it.`,
 	Args:  cobra.MaximumNArgs(1),
 	RunE: func(_ *cobra.Command, args []string) error {
 		podName := "netdrill"

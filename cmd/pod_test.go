@@ -67,6 +67,7 @@ func TestPodFlags(t *testing.T) {
 		{"service-account flag exists", "service-account"},
 		{"port flag exists", "port"},
 		{"env flag exists", "env"},
+		{"host-network flag exists", "host-network"},
 	}
 
 	for _, tt := range tests {
@@ -85,7 +86,7 @@ func TestPodCommandInheritance(t *testing.T) {
 	}{
 		{"image flag exists", "image", rootCmd.Flags},
 		{"node-selector flag exists", "node-selector", rootCmd.Flags},
-		{"host-network flag exists", "host-network", runCmd.Flags},
+		{"host-network flag exists", "host-network", podCmd.Flags},
 	}
 
 	for _, tt := range tests {
