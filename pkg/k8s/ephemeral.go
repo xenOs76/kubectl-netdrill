@@ -23,7 +23,7 @@ type EphemeralOptions struct {
 }
 
 // AddEphemeralContainer adds an ephemeral container to an existing Pod.
-func AddEphemeralContainer(ctx context.Context, client *kubernetes.Clientset, opts EphemeralOptions) error {
+func AddEphemeralContainer(ctx context.Context, client kubernetes.Interface, opts EphemeralOptions) error {
 	pod, err := client.CoreV1().Pods(opts.Namespace).Get(ctx, opts.PodName, metav1.GetOptions{})
 	if err != nil {
 		return err
@@ -33,7 +33,7 @@ func AddEphemeralContainer(ctx context.Context, client *kubernetes.Clientset, op
 		EphemeralContainerCommon: corev1.EphemeralContainerCommon{
 			Name:            opts.ContainerName,
 			Image:           opts.Image,
-			ImagePullPolicy: corev1.PullAlways,
+			ImagePullPolicy: corev1.PullIfNotPresent,
 			Stdin:           true,
 			TTY:             true,
 		},
@@ -52,7 +52,7 @@ func AddEphemeralContainer(ctx context.Context, client *kubernetes.Clientset, op
 }
 
 // WaitForEphemeralContainerReady waits until the ephemeral container is in Running state.
-func WaitForEphemeralContainerReady(ctx context.Context, client *kubernetes.Clientset,
+func WaitForEphemeralContainerReady(ctx context.Context, client kubernetes.Interface,
 	namespace, podName, containerName string) error {
 	watch, err := client.CoreV1().Pods(namespace).Watch(ctx, metav1.ListOptions{
 		FieldSelector: fmt.Sprintf("metadata.name=%s", podName),
@@ -98,7 +98,7 @@ func checkEphemeralContainer(pod *corev1.Pod, name string) (bool, error) {
 }
 
 // AttachToEphemeralContainer attaches to the ephemeral container.
-func AttachToEphemeralContainer(ctx context.Context, client *kubernetes.Clientset,
+func AttachToEphemeralContainer(ctx context.Context, client kubernetes.Interface,
 	config *rest.Config, namespace, podName, containerName string, tsq remotecommand.TerminalSizeQueue) error {
 	req := client.CoreV1().RESTClient().Post().
 		Resource("pods").
