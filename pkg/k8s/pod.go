@@ -15,16 +15,20 @@ import (
 
 // PodOptions defines options for creating a troubleshooting Pod.
 type PodOptions struct {
-	Namespace    string
-	PodName      string
-	Image        string
-	HostNetwork  bool
-	Command      []string
-	NodeSelector map[string]string
+	Namespace      string
+	PodName        string
+	Image          string
+	HostNetwork    bool
+	Command        []string
+	Args           []string
+	NodeSelector   map[string]string
+	ServiceAccount string
+	Ports          []corev1.ContainerPort
+	EnvVars        []corev1.EnvVar
 }
 
 // CreatePod creates a new Pod with the specified options.
-func CreatePod(ctx context.Context, client *kubernetes.Clientset, opts PodOptions) (*corev1.Pod, error) {
+func CreatePod(ctx context.Context, client kubernetes.Interface, opts PodOptions) (*corev1.Pod, error) {
 	pod := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      opts.PodName,
@@ -38,15 +42,19 @@ func CreatePod(ctx context.Context, client *kubernetes.Clientset, opts PodOption
 				{
 					Name:            "netdrill",
 					Image:           opts.Image,
-					ImagePullPolicy: corev1.PullAlways,
+					ImagePullPolicy: corev1.PullIfNotPresent,
 					Stdin:           true,
 					TTY:             true,
 					Command:         opts.Command,
+					Args:            opts.Args,
+					Ports:           opts.Ports,
+					Env:             opts.EnvVars,
 				},
 			},
-			RestartPolicy: corev1.RestartPolicyNever,
-			HostNetwork:   opts.HostNetwork,
-			NodeSelector:  opts.NodeSelector,
+			RestartPolicy:      corev1.RestartPolicyNever,
+			HostNetwork:        opts.HostNetwork,
+			NodeSelector:       opts.NodeSelector,
+			ServiceAccountName: opts.ServiceAccount,
 		},
 	}
 
@@ -54,7 +62,7 @@ func CreatePod(ctx context.Context, client *kubernetes.Clientset, opts PodOption
 }
 
 // WaitForPodReady waits until the Pod is in Running state.
-func WaitForPodReady(ctx context.Context, client *kubernetes.Clientset, namespace, podName string) error {
+func WaitForPodReady(ctx context.Context, client kubernetes.Interface, namespace, podName string) error {
 	watch, err := client.CoreV1().Pods(namespace).Watch(ctx, metav1.ListOptions{
 		FieldSelector: fmt.Sprintf("metadata.name=%s", podName),
 	})
@@ -85,7 +93,7 @@ func WaitForPodReady(ctx context.Context, client *kubernetes.Clientset, namespac
 }
 
 // AttachToPod attaches the current terminal to the Pod's container.
-func AttachToPod(ctx context.Context, client *kubernetes.Clientset, config *rest.Config,
+func AttachToPod(ctx context.Context, client kubernetes.Interface, config *rest.Config,
 	namespace, podName, pgkContainerName string, tsq remotecommand.TerminalSizeQueue,
 ) error {
 	req := client.CoreV1().RESTClient().Post().
@@ -117,6 +125,6 @@ func AttachToPod(ctx context.Context, client *kubernetes.Clientset, config *rest
 }
 
 // DeletePod deletes the specified Pod.
-func DeletePod(ctx context.Context, client *kubernetes.Clientset, namespace, podName string) error {
+func DeletePod(ctx context.Context, client kubernetes.Interface, namespace, podName string) error {
 	return client.CoreV1().Pods(namespace).Delete(ctx, podName, metav1.DeleteOptions{})
 }

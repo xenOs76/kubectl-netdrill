@@ -46,6 +46,11 @@ checksum:
   name_template: "{{ .ProjectName }}_{{ .Version }}_checksums.txt"
   algorithm: sha256
 
+sboms:
+  - artifacts: archive
+  - id: source
+    artifacts: source
+
 nfpms:
   - maintainer: Zeno Belli <xeno@os76.xyz>
     vendor: xenos76 on Github

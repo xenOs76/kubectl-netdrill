@@ -1,3 +1,6 @@
 dist/
 kubectl-netdrill
 lint.out
+cover*
+docs
+.agents
