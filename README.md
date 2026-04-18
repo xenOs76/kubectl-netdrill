@@ -1,6 +1,6 @@
 # kubectl-netdrill
 
-[![Go Report Card](https://goreportcard.com/badge/github.com/xenos76/kubectl-netdrill)](https://goreportcard.com/badge/github.com/xenos76/kubectl-netdrill)
+[![Go Report Card](https://goreportcard.com/badge/github.com/xenos76/kubectl-netdrill)](https://goreportcard.com/report/github.com/xenos76/kubectl-netdrill)
 
 <p align="center">
     <img width="450" alt="NetDrill Logo" src="./assets/img/netdrill-logo.png"/><br />
