@@ -166,6 +166,8 @@ kubectl-netdrill version 0.1.2
 
 ### kubectl netdrill run
 
+<details>
+
 Create a throw-away pod for general network testing:
 
 ```bash
@@ -213,7 +215,11 @@ Run a custom command instead of an interactive shell:
 kubectl netdrill run --command "ip addr show"
 ```
 
+</details>
+
 ### kubectl netdrill pod
+
+<details>
 
 Create a persistent troubleshooting pod that remains running after you exit
 (unlike `run` which auto-deletes):
@@ -275,7 +281,11 @@ Attach to an existing persistent pod:
 kubectl exec -it my-persistent-troubleshooter -n default -- /bin/bash
 ```
 
+</details>
+
 ### kubectl netdrill debug
+
+<details>
 
 Inject a `netdrill` container into a running Pod to troubleshoot within its
 network context:
@@ -312,3 +322,5 @@ container):
 ```bash
 kubectl netdrill debug my-app-pod --target my-app-container
 ```
+
+</details>
