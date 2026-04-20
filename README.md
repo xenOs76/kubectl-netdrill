@@ -265,13 +265,13 @@ Create a pod with environment variables:
 kubectl netdrill pod --env DEBUG=true --env API_URL=http://api:8080
 ```
 
-Create a pod with a specific IAM role in Kubernetes/EKS:
+Create a pod with a specific IAM role in EKS:
 
 ```bash
-kubectl-netdrill pod my-s3-client \
+kubectl-netdrill pod netdrill-iam-pod \
     --env AWS_REGION='eu-central-1' \
     --env AWS_ROLE_ARN='arn:aws:iam::AWS_ACCOUNT_ID:role/IAMRoleName' \
-    --env AWS_WEB_IDENTITY_TOKEN_FILE='/run/secrets/kubernetes.io/serviceaccount/token' \
+    --env AWS_WEB_IDENTITY_TOKEN_FILE='/run/secrets/eks.amazonaws.com/serviceaccount/token' \
     --service-account aws-client
 ```
 
