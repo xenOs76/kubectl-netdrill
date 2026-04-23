@@ -2,6 +2,7 @@ package k8s
 
 import (
 	"context"
+	"fmt"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -34,7 +35,7 @@ func CreateDeployment(
 	}
 
 	// Base labels required for the selector
-	appLabel := "kubectl-netdrill"
+	appLabel := opts.PodName
 	if opts.AppLabel != "" {
 		appLabel = opts.AppLabel
 	}
@@ -45,15 +46,18 @@ func CreateDeployment(
 
 	// Merge with user-provided labels
 	labels := make(map[string]string)
-	for k, v := range selectorLabels {
-		labels[k] = v
-	}
-
 	for k, v := range opts.Labels {
 		labels[k] = v
 	}
 
-	resources := buildResources(opts)
+	for k, v := range selectorLabels {
+		labels[k] = v
+	}
+
+	resources, err := buildResources(opts)
+	if err != nil {
+		return nil, err
+	}
 
 	deployment := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
@@ -96,27 +100,54 @@ func CreateDeployment(
 	return client.AppsV1().Deployments(opts.Namespace).Create(ctx, deployment, metav1.CreateOptions{})
 }
 
-func buildResources(opts DeploymentOptions) corev1.ResourceRequirements {
-	resources := corev1.ResourceRequirements{
-		Requests: make(corev1.ResourceList),
-		Limits:   make(corev1.ResourceList),
+func buildResources(opts DeploymentOptions) (corev1.ResourceRequirements, error) {
+	var err error
+
+	resources := corev1.ResourceRequirements{}
+
+	resources.Requests, err = parseResource(opts.CPURequest, "cpu-request", resources.Requests, corev1.ResourceCPU)
+	if err != nil {
+		return resources, err
 	}
 
-	if opts.CPURequest != "" {
-		resources.Requests[corev1.ResourceCPU] = resource.MustParse(opts.CPURequest)
+	resources.Requests, err = parseResource(opts.MemoryRequest, "memory-request",
+		resources.Requests, corev1.ResourceMemory)
+	if err != nil {
+		return resources, err
 	}
 
-	if opts.MemoryRequest != "" {
-		resources.Requests[corev1.ResourceMemory] = resource.MustParse(opts.MemoryRequest)
+	resources.Limits, err = parseResource(opts.CPULimit, "cpu-limit", resources.Limits, corev1.ResourceCPU)
+	if err != nil {
+		return resources, err
 	}
 
-	if opts.CPULimit != "" {
-		resources.Limits[corev1.ResourceCPU] = resource.MustParse(opts.CPULimit)
+	resources.Limits, err = parseResource(opts.MemoryLimit, "memory-limit", resources.Limits, corev1.ResourceMemory)
+	if err != nil {
+		return resources, err
 	}
 
-	if opts.MemoryLimit != "" {
-		resources.Limits[corev1.ResourceMemory] = resource.MustParse(opts.MemoryLimit)
+	return resources, nil
+}
+
+func parseResource(
+	val, name string,
+	list corev1.ResourceList,
+	resName corev1.ResourceName,
+) (corev1.ResourceList, error) {
+	if val == "" {
+		return list, nil
 	}
 
-	return resources
+	q, err := resource.ParseQuantity(val)
+	if err != nil {
+		return list, fmt.Errorf("invalid %s %q: %w", name, val, err)
+	}
+
+	if list == nil {
+		list = make(corev1.ResourceList)
+	}
+
+	list[resName] = q
+
+	return list, nil
 }

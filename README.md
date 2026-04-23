@@ -231,14 +231,14 @@ kubectl netdrill pod my-persistent-troubleshooter
 
 #### Options
 
-| Flag                | Description                                          | Default                |
-| ------------------- | ---------------------------------------------------- | ---------------------- |
-| `--service-account` | ServiceAccount to use for the pod                    |                        |
-| `--port`            | Ports to expose on the container (e.g., `--port 80`) |                        |
-| `--env`             | Environment variables (e.g., `--env KEY=VALUE`)      |                        |
-| `--host-network`    | Use the host's network namespace                     | `false`                |
-| `--node-selector`   | Node labels for pod scheduling                       |                        |
-| `--image`           | `-i`                                                 | Container image to use |
+| Flag                | Short | Description                                          | Default                           |
+| ------------------- | ----- | ---------------------------------------------------- | --------------------------------- |
+| `--service-account` |       | ServiceAccount to use for the pod                    |                                   |
+| `--port`            |       | Ports to expose on the container (e.g., `--port 80`) |                                   |
+| `--env`             |       | Environment variables (e.g., `--env KEY=VALUE`)      |                                   |
+| `--host-network`    |       | Use the host's network namespace                     | `false`                           |
+| `--node-selector`   |       | Node labels for pod scheduling                       |                                   |
+| `--image`           | `-i`  | Container image to use                               | `ghcr.io/xenos76/netdrill:latest` |
 
 #### Examples
 
@@ -297,20 +297,20 @@ kubectl netdrill deployment my-deployment
 
 #### Options
 
-| Flag                | Description                                          | Default                |
-| ------------------- | ---------------------------------------------------- | ---------------------- |
-| `--replicas`        | Number of replicas                                   | `1`                    |
-| `--cpu-request`     | CPU request (e.g. `100m`)                            |                        |
-| `--memory-request`  | Memory request (e.g. `128Mi`)                        |                        |
-| `--cpu-limit`       | CPU limit (e.g. `200m`)                              |                        |
-| `--memory-limit`    | Memory limit (e.g. `256Mi`)                          |                        |
-| `--labels`          | Additional labels (e.g. `key=val`)                   |                        |
-| `--service-account` | ServiceAccount to use for the deployment             |                        |
-| `--port`            | Ports to expose on the container (e.g., `--port 80`) |                        |
-| `--env`             | Environment variables (e.g., `--env KEY=VALUE`)      |                        |
-| `--host-network`    | Use the host's network namespace                     | `false`                |
-| `--node-selector`   | Node labels for pod scheduling                       |                        |
-| `--image`           | Container image to use                               | `netdrill:latest`      |
+| Flag                | Short | Description                                          | Default                           |
+| ------------------- | ----- | ---------------------------------------------------- | --------------------------------- |
+| `--replicas`        |       | Number of replicas                                   | `1`                               |
+| `--cpu-request`     |       | CPU request (e.g. `100m`)                            |                                   |
+| `--memory-request`  |       | Memory request (e.g. `128Mi`)                        |                                   |
+| `--cpu-limit`       |       | CPU limit (e.g. `200m`)                              |                                   |
+| `--memory-limit`    |       | Memory limit (e.g. `256Mi`)                          |                                   |
+| `--labels`          |       | Additional labels (e.g. `key=val`)                   |                                   |
+| `--service-account` |       | ServiceAccount to use for the deployment             |                                   |
+| `--port`            |       | Ports to expose on the container (e.g., `--port 80`) |                                   |
+| `--env`             |       | Environment variables (e.g., `--env KEY=VALUE`)      |                                   |
+| `--host-network`    |       | Use the host's network namespace                     | `false`                           |
+| `--node-selector`   |       | Node labels for pod scheduling                       |                                   |
+| `--image`           | `-i`  | Container image to use                               | `ghcr.io/xenos76/netdrill:latest` |
 
 #### Examples
 
@@ -356,7 +356,6 @@ kubectl netdrill debug <pod-name> --target <container-name>
 | Flag              | Short | Description                                                    | Default                           |
 | ----------------- | ----- | -------------------------------------------------------------- | --------------------------------- |
 | `--target`        |       | Container name to share PID namespace with                     |                                   |
-| `--node-selector` |       | Node labels for pod scheduling (e.g. `kubernetes.io/os=linux`) |                                   |
 | `--image`         | `-i`  | Container image to use                                         | `ghcr.io/xenos76/netdrill:latest` |
 
 #### Examples

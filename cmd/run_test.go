@@ -25,6 +25,7 @@ func TestRunFlags(t *testing.T) {
 	}{
 		{"host-network flag exists", "host-network"},
 		{"command flag exists", "command"},
+		{"node-selector flag exists", "node-selector"},
 	}
 
 	for _, tt := range tests {

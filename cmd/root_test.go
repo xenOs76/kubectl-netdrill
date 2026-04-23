@@ -27,7 +27,6 @@ func TestRootFlags(t *testing.T) {
 		flagName string
 	}{
 		{"image flag exists", "image"},
-		{"node-selector flag exists", "node-selector"},
 	}
 
 	for _, tt := range tests {

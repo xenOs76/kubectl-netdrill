@@ -43,18 +43,4 @@ func init() {
 		DefaultImage,
 		"The netdrill image to use",
 	)
-
-	rootCmd.PersistentFlags().StringToStringVar(&NodeSelector,
-		"node-selector",
-		map[string]string{},
-		"node labels to use as a node selector for scheduling the netdrill pod (e.g. kubernetes.io/os=linux)",
-	)
-
-	rootCmd.PersistentFlags().StringVar(&ServiceAccount, "service-account", "",
-		"ServiceAccount to use for the pod/deployment")
-	rootCmd.PersistentFlags().Int32SliceVar(&Ports, "port", []int32{},
-		"Ports to expose on the container (e.g., --port 80)")
-	rootCmd.PersistentFlags().StringToStringVar(&EnvVars, "env", map[string]string{},
-		"Environment variables (e.g., --env KEY=VALUE)")
-	rootCmd.PersistentFlags().BoolVar(&HostNetwork, "host-network", false, "Use host networking")
 }

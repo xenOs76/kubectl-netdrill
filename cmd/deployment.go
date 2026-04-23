@@ -26,11 +26,10 @@ Unlike 'run', this deployment is not automatically deleted.`,
 	Args: cobra.MaximumNArgs(1),
 	RunE: func(_ *cobra.Command, args []string) error {
 		deployName := "netdrill"
-		appLabel := ""
 		if len(args) > 0 {
 			deployName = args[0]
-			appLabel = deployName
 		}
+		appLabel := deployName
 
 		ctx := context.Background()
 
@@ -82,13 +81,8 @@ Unlike 'run', this deployment is not automatically deleted.`,
 			return fmt.Errorf("creating deployment: %w", err)
 		}
 
-		displayLabel := "kubectl-netdrill"
-		if appLabel != "" {
-			displayLabel = appLabel
-		}
-
 		fmt.Printf("Deployment %s created successfully.\n", deployName)
-		fmt.Printf("Use 'kubectl get pods -l app=%s' to find the pods.\n", displayLabel)
+		fmt.Printf("Use 'kubectl get pods -l app=%s' to find the pods.\n", appLabel)
 		fmt.Printf("Use 'kubectl delete deployment %s -n %s' to delete it.\n", deployName, namespace)
 
 		return nil
@@ -105,4 +99,14 @@ func init() {
 	deploymentCmd.Flags().StringVar(&MemoryLimit, "memory-limit", "", "Memory limit (e.g. 256Mi)")
 	deploymentCmd.Flags().StringToStringVar(&Labels, "labels", map[string]string{},
 		"Additional labels (e.g. key1=val1,key2=val2)")
+
+	deploymentCmd.Flags().StringVar(&ServiceAccount, "service-account", "",
+		"ServiceAccount to use for the deployment")
+	deploymentCmd.Flags().Int32SliceVar(&Ports, "port", []int32{},
+		"Ports to expose on the container (e.g., --port 80)")
+	deploymentCmd.Flags().StringToStringVar(&EnvVars, "env", map[string]string{},
+		"Environment variables (e.g., --env KEY=VALUE)")
+	deploymentCmd.Flags().BoolVar(&HostNetwork, "host-network", false, "Use host networking")
+	deploymentCmd.Flags().StringToStringVar(&NodeSelector, "node-selector", map[string]string{},
+		"node labels to use as a node selector for scheduling the netdrill pod (e.g. kubernetes.io/os=linux)")
 }

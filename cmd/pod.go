@@ -71,4 +71,14 @@ var podCmd = &cobra.Command{
 
 func init() {
 	rootCmd.AddCommand(podCmd)
+
+	podCmd.Flags().StringVar(&ServiceAccount, "service-account", "",
+		"ServiceAccount to use for the pod")
+	podCmd.Flags().Int32SliceVar(&Ports, "port", []int32{},
+		"Ports to expose on the container (e.g., --port 80)")
+	podCmd.Flags().StringToStringVar(&EnvVars, "env", map[string]string{},
+		"Environment variables (e.g., --env KEY=VALUE)")
+	podCmd.Flags().BoolVar(&HostNetwork, "host-network", false, "Use host networking")
+	podCmd.Flags().StringToStringVar(&NodeSelector, "node-selector", map[string]string{},
+		"node labels to use as a node selector for scheduling the netdrill pod (e.g. kubernetes.io/os=linux)")
 }

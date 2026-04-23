@@ -43,5 +43,25 @@ func TestCreateDeployment_DefaultLabel(t *testing.T) {
 
 	deploy, err := CreateDeployment(context.Background(), client, opts)
 	require.NoError(t, err)
-	assert.Equal(t, "kubectl-netdrill", deploy.Labels["app"], "should use default label when AppLabel is empty")
+	assert.Equal(t, "netdrill", deploy.Labels["app"], "should use deployment name as default label")
+}
+
+func TestCreateDeployment_LabelOverride(t *testing.T) {
+	client := fake.NewSimpleClientset()
+	opts := DeploymentOptions{
+		PodOptions: PodOptions{
+			Namespace: "default",
+			PodName:   "netdrill",
+			Image:     "netdrill",
+		},
+		Labels: map[string]string{
+			"app": "SHOULD-NOT-OVERWRITE",
+			"foo": "bar",
+		},
+	}
+
+	deploy, err := CreateDeployment(context.Background(), client, opts)
+	require.NoError(t, err)
+	assert.Equal(t, "netdrill", deploy.Labels["app"], "selector label 'app' should NOT be overridable by user labels")
+	assert.Equal(t, "bar", deploy.Labels["foo"], "other user labels should still be applied")
 }

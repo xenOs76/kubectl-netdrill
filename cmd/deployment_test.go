@@ -22,6 +22,7 @@ func TestDeploymentCommandFlags(t *testing.T) {
 		{"port flag exists", "port"},
 		{"env flag exists", "env"},
 		{"host-network flag exists", "host-network"},
+		{"node-selector flag exists", "node-selector"},
 	}
 
 	for _, tt := range tests {
