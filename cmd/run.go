@@ -7,16 +7,12 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/spf13/cobra"
 	"github.com/xenos76/kubectl-netdrill/pkg/k8s"
 	"github.com/xenos76/kubectl-netdrill/pkg/term"
-
-	"github.com/spf13/cobra"
 )
 
-var (
-	HostNetwork bool
-	Command     []string
-)
+var Command []string
 
 var runCmd = &cobra.Command{
 	Use:   "run [NAME]",
@@ -103,6 +99,5 @@ var runCmd = &cobra.Command{
 func init() {
 	rootCmd.AddCommand(runCmd)
 
-	runCmd.Flags().BoolVar(&HostNetwork, "host-network", false, "Use host networking")
 	runCmd.Flags().StringSliceVar(&Command, "command", nil, "Command to run in the container")
 }

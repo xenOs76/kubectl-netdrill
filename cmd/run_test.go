@@ -29,7 +29,11 @@ func TestRunFlags(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			flag := runCmd.Flags().Lookup(tt.flagName)
+			if runCmd.Parent() == nil {
+				rootCmd.AddCommand(runCmd)
+			}
+
+			flag := runCmd.Flag(tt.flagName)
 			assert.NotNil(t, flag, "flag %s should exist", tt.flagName)
 		})
 	}

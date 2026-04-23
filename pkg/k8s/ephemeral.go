@@ -53,7 +53,8 @@ func AddEphemeralContainer(ctx context.Context, client kubernetes.Interface, opt
 
 // WaitForEphemeralContainerReady waits until the ephemeral container is in Running state.
 func WaitForEphemeralContainerReady(ctx context.Context, client kubernetes.Interface,
-	namespace, podName, containerName string) error {
+	namespace, podName, containerName string,
+) error {
 	watch, err := client.CoreV1().Pods(namespace).Watch(ctx, metav1.ListOptions{
 		FieldSelector: fmt.Sprintf("metadata.name=%s", podName),
 	})
@@ -99,7 +100,8 @@ func checkEphemeralContainer(pod *corev1.Pod, name string) (bool, error) {
 
 // AttachToEphemeralContainer attaches to the ephemeral container.
 func AttachToEphemeralContainer(ctx context.Context, client kubernetes.Interface,
-	config *rest.Config, namespace, podName, containerName string, tsq remotecommand.TerminalSizeQueue) error {
+	config *rest.Config, namespace, podName, containerName string, tsq remotecommand.TerminalSizeQueue,
+) error {
 	req := client.CoreV1().RESTClient().Post().
 		Resource("pods").
 		Name(podName).

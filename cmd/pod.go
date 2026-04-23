@@ -4,16 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/xenos76/kubectl-netdrill/pkg/k8s"
-
 	"github.com/spf13/cobra"
+	"github.com/xenos76/kubectl-netdrill/pkg/k8s"
 	corev1 "k8s.io/api/core/v1"
-)
-
-var (
-	ServiceAccount string
-	Ports          []int32
-	EnvVars        map[string]string
 )
 
 var podCmd = &cobra.Command{
@@ -78,12 +71,4 @@ var podCmd = &cobra.Command{
 
 func init() {
 	rootCmd.AddCommand(podCmd)
-
-	podCmd.Flags().StringVar(&ServiceAccount, "service-account", "",
-		"ServiceAccount to use for the pod")
-	podCmd.Flags().Int32SliceVar(&Ports, "port", []int32{},
-		"Ports to expose on the container (e.g., --port 80)")
-	podCmd.Flags().StringToStringVar(&EnvVars, "env", map[string]string{},
-		"Environment variables (e.g., --env KEY=VALUE)")
-	podCmd.Flags().BoolVar(&HostNetwork, "host-network", false, "Use host networking")
 }

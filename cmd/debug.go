@@ -7,15 +7,12 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/spf13/cobra"
 	"github.com/xenos76/kubectl-netdrill/pkg/k8s"
 	"github.com/xenos76/kubectl-netdrill/pkg/term"
-
-	"github.com/spf13/cobra"
 )
 
-var (
-	TargetContainer string
-)
+var TargetContainer string
 
 var debugCmd = &cobra.Command{
 	Use:   "debug [POD]",
