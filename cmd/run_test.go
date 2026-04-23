@@ -25,11 +25,16 @@ func TestRunFlags(t *testing.T) {
 	}{
 		{"host-network flag exists", "host-network"},
 		{"command flag exists", "command"},
+		{"node-selector flag exists", "node-selector"},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			flag := runCmd.Flags().Lookup(tt.flagName)
+			if runCmd.Parent() == nil {
+				rootCmd.AddCommand(runCmd)
+			}
+
+			flag := runCmd.Flag(tt.flagName)
 			assert.NotNil(t, flag, "flag %s should exist", tt.flagName)
 		})
 	}

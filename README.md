@@ -162,6 +162,7 @@ kubectl-netdrill version 0.1.2
 | ------------------------------ | ------------------------------------------------------------- |
 | `kubectl netdrill run [name]`  | Create a temporary troubleshooting pod (auto-deleted on exit) |
 | `kubectl netdrill pod [name]`  | Create a persistent troubleshooting pod                       |
+| `kubectl netdrill deployment [name]` | Create a persistent troubleshooting deployment          |
 | `kubectl netdrill debug <pod>` | Inject ephemeral container into a running pod                 |
 
 ### kubectl netdrill run
@@ -230,14 +231,14 @@ kubectl netdrill pod my-persistent-troubleshooter
 
 #### Options
 
-| Flag                | Description                                          | Default                |
-| ------------------- | ---------------------------------------------------- | ---------------------- |
-| `--service-account` | ServiceAccount to use for the pod                    |                        |
-| `--port`            | Ports to expose on the container (e.g., `--port 80`) |                        |
-| `--env`             | Environment variables (e.g., `--env KEY=VALUE`)      |                        |
-| `--host-network`    | Use the host's network namespace                     | `false`                |
-| `--node-selector`   | Node labels for pod scheduling                       |                        |
-| `--image`           | `-i`                                                 | Container image to use |
+| Flag                | Short | Description                                          | Default                           |
+| ------------------- | ----- | ---------------------------------------------------- | --------------------------------- |
+| `--service-account` |       | ServiceAccount to use for the pod                    |                                   |
+| `--port`            |       | Ports to expose on the container (e.g., `--port 80`) |                                   |
+| `--env`             |       | Environment variables (e.g., `--env KEY=VALUE`)      |                                   |
+| `--host-network`    |       | Use the host's network namespace                     | `false`                           |
+| `--node-selector`   |       | Node labels for pod scheduling                       |                                   |
+| `--image`           | `-i`  | Container image to use                               | `ghcr.io/xenos76/netdrill:latest` |
 
 #### Examples
 
@@ -283,6 +284,56 @@ kubectl exec -it my-persistent-troubleshooter -n default -- /bin/bash
 
 </details>
 
+### kubectl netdrill deployment
+
+<details>
+
+Create a persistent troubleshooting deployment. This is useful when you need a
+highly available or scalable troubleshooting environment:
+
+```bash
+kubectl netdrill deployment my-deployment
+```
+
+#### Options
+
+| Flag                | Short | Description                                          | Default                           |
+| ------------------- | ----- | ---------------------------------------------------- | --------------------------------- |
+| `--replicas`        |       | Number of replicas                                   | `1`                               |
+| `--cpu-request`     |       | CPU request (e.g. `100m`)                            |                                   |
+| `--memory-request`  |       | Memory request (e.g. `128Mi`)                        |                                   |
+| `--cpu-limit`       |       | CPU limit (e.g. `200m`)                              |                                   |
+| `--memory-limit`    |       | Memory limit (e.g. `256Mi`)                          |                                   |
+| `--labels`          |       | Additional labels (e.g. `key=val`)                   |                                   |
+| `--service-account` |       | ServiceAccount to use for the deployment             |                                   |
+| `--port`            |       | Ports to expose on the container (e.g., `--port 80`) |                                   |
+| `--env`             |       | Environment variables (e.g., `--env KEY=VALUE`)      |                                   |
+| `--host-network`    |       | Use the host's network namespace                     | `false`                           |
+| `--node-selector`   |       | Node labels for pod scheduling                       |                                   |
+| `--image`           | `-i`  | Container image to use                               | `ghcr.io/xenos76/netdrill:latest` |
+
+#### Examples
+
+Create a deployment with 3 replicas:
+
+```bash
+kubectl netdrill deployment my-deploy --replicas 3
+```
+
+Create a deployment with resource limits:
+
+```bash
+kubectl netdrill deployment my-deploy --cpu-limit 200m --memory-limit 256Mi
+```
+
+Create a deployment with custom labels:
+
+```bash
+kubectl netdrill deployment my-deploy --labels env=prod,team=network
+```
+
+</details>
+
 ### kubectl netdrill debug
 
 <details>
@@ -305,7 +356,6 @@ kubectl netdrill debug <pod-name> --target <container-name>
 | Flag              | Short | Description                                                    | Default                           |
 | ----------------- | ----- | -------------------------------------------------------------- | --------------------------------- |
 | `--target`        |       | Container name to share PID namespace with                     |                                   |
-| `--node-selector` |       | Node labels for pod scheduling (e.g. `kubernetes.io/os=linux`) |                                   |
 | `--image`         | `-i`  | Container image to use                                         | `ghcr.io/xenos76/netdrill:latest` |
 
 #### Examples

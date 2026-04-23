@@ -4,16 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/xenos76/kubectl-netdrill/pkg/k8s"
-
 	"github.com/spf13/cobra"
+	"github.com/xenos76/kubectl-netdrill/pkg/k8s"
 	corev1 "k8s.io/api/core/v1"
-)
-
-var (
-	ServiceAccount string
-	Ports          []int32
-	EnvVars        map[string]string
 )
 
 var podCmd = &cobra.Command{
@@ -86,4 +79,6 @@ func init() {
 	podCmd.Flags().StringToStringVar(&EnvVars, "env", map[string]string{},
 		"Environment variables (e.g., --env KEY=VALUE)")
 	podCmd.Flags().BoolVar(&HostNetwork, "host-network", false, "Use host networking")
+	podCmd.Flags().StringToStringVar(&NodeSelector, "node-selector", map[string]string{},
+		"node labels to use as a node selector for scheduling the netdrill pod (e.g. kubernetes.io/os=linux)")
 }

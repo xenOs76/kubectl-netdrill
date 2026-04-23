@@ -68,11 +68,16 @@ func TestPodFlags(t *testing.T) {
 		{"port flag exists", "port"},
 		{"env flag exists", "env"},
 		{"host-network flag exists", "host-network"},
+		{"node-selector flag exists", "node-selector"},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			flag := podCmd.Flags().Lookup(tt.flagName)
+			if podCmd.Parent() == nil {
+				rootCmd.AddCommand(podCmd)
+			}
+
+			flag := podCmd.Flag(tt.flagName)
 			assert.NotNil(t, flag, "flag %s should exist", tt.flagName)
 		})
 	}
@@ -85,13 +90,16 @@ func TestPodCommandInheritance(t *testing.T) {
 		cmdFlags func() *pflag.FlagSet
 	}{
 		{"image flag exists", "image", rootCmd.Flags},
-		{"node-selector flag exists", "node-selector", rootCmd.Flags},
-		{"host-network flag exists", "host-network", podCmd.Flags},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			flag := tt.cmdFlags().Lookup(tt.flagName)
+			if podCmd.Parent() == nil {
+				rootCmd.AddCommand(podCmd)
+			}
+
+			// For the inheritance test, we specifically want to check if it's available on podCmd
+			flag := podCmd.Flag(tt.flagName)
 			assert.NotNil(t, flag, "flag %s should exist", tt.flagName)
 		})
 	}

@@ -31,7 +31,7 @@ users:
 
 	tmpDir := t.TempDir()
 	kubeconfigPath := filepath.Join(tmpDir, "kubeconfig")
-	err := os.WriteFile(kubeconfigPath, []byte(kubeconfigContent), 0600)
+	err := os.WriteFile(kubeconfigPath, []byte(kubeconfigContent), 0o600)
 	require.NoError(t, err)
 
 	tests := []struct {
