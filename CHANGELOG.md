@@ -1,3 +1,22 @@
+## 0.1.4 (2026-04-23)
+
+    New Features
+
+        Added deployment subcommand to create persistent troubleshooting deployments with configurable replicas, resource limits, and labels.
+        Added global flags (--service-account, --port, --env, --host-network) for shared configuration across commands.
+
+    Documentation
+
+        Updated README with deployment subcommand reference and detailed usage examples.
+
+    Tests
+
+        Added comprehensive tests for deployment creation functionality.
+
+    Refactor
+
+        Consolidated pod configuration flags to root command level.
+
 ## 0.1.3 (2026-04-15)
 
     New Features
