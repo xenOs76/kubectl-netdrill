@@ -45,5 +45,4 @@ func init() {
 	)
 
 	rootCmd.AddCommand(completionCmd)
-	rootCmd.AddCommand(manCmd)
 }
