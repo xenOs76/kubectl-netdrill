@@ -1,8 +1,6 @@
 package cmd
 
 import (
-	"fmt"
-
 	"github.com/spf13/cobra"
 	"github.com/spf13/cobra/doc"
 )
@@ -13,7 +11,7 @@ var manCmd = &cobra.Command{
 	Use:    "man [command]",
 	Short:  "Generate man pages",
 	Hidden: true,
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		header := &doc.GenManHeader{
 			Title:   "KUBECTL-NETDRILL",
 			Section: "1",
@@ -24,15 +22,11 @@ var manCmd = &cobra.Command{
 			var err error
 			target, _, err = cmd.Root().Find(args)
 			if err != nil {
-				return
+				return err
 			}
 		}
 
-		err := doc.GenManTree(target, header, manPagesDestDir)
-		if err != nil {
-			fmt.Print(err)
-			return
-		}
+		return doc.GenManTree(target, header, manPagesDestDir)
 	},
 }
 
