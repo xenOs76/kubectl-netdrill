@@ -29,6 +29,10 @@ jobs:
         with:
           go-version: ${{ matrix.go-version }}
 
+      - uses: cachix/install-nix-action@v31
+        with:
+          github_access_token: ${{ secrets.GH_GORELEASER_TOKEN }}
+
       - uses: anchore/sbom-action/download-syft@e22c389904149dbc22b58101806040fa8d37a610 # v0.24.0
 
       - name: Run GoReleaser
