@@ -19,6 +19,18 @@ before:
   hooks:
     - go mod download
     - go mod tidy
+    - mkdir -p completions manpages
+    - sh -c "go run main.go completion bash > completions/kubectl-netdrill.bash"
+    - sh -c "go run main.go completion zsh > completions/_kubectl-netdrill"
+    - sh -c "go run main.go completion fish > completions/kubectl-netdrill.fish"
+    - rm -rf manpages
+    - mkdir manpages
+    - sh -c 'go run . man --dest-dir manpages'
+    - sh -c 'go run . man run --dest-dir manpages'
+    - sh -c 'go run . man pod --dest-dir manpages'
+    - sh -c 'go run . man deployment --dest-dir manpages'
+    - sh -c 'go run . man debug --dest-dir manpages'
+    - sh -c 'gzip manpages/*'
 
 builds:
   - env:
@@ -41,6 +53,8 @@ archives:
     files:
       - README.md
       - LICENSE
+      - completions/*
+      - manpages/*
 
 checksum:
   name_template: "{{ .ProjectName }}_{{ .Version }}_checksums.txt"
@@ -60,7 +74,22 @@ nfpms:
     formats:
       - deb
       - rpm
+      - apk
+
     release: "1"
+
+    contents:
+      - src: completions/kubectl-netdrill.bash
+        dst: /etc/bash_completion.d/kubectl-netdrill
+
+      - src: completions/kubectl-netdrill.fish
+        dst: /usr/share/fish/vendor_completions.d/kubectl-netdrill.fish
+
+      - src: completions/_kubectl-netdrill
+        dst: /usr/share/zsh/vendor-completions/_kubectl-netdrill
+
+      - src: manpages/*.gz
+        dst: /usr/share/man/man1/
 
 homebrew_casks:
   - repository:
@@ -71,6 +100,18 @@ homebrew_casks:
     license: MIT
     skip_upload: false
 
+    manpages:
+      - manpages/kubectl-netdrill.1.gz
+      - manpages/kubectl-netdrill-run.1.gz
+      - manpages/kubectl-netdrill-pod.1.gz
+      - manpages/kubectl-netdrill-debug.1.gz
+      - manpages/kubectl-netdrill-deployment.1.gz
+
+    completions:
+      bash: "completions/{{ .ProjectName }}.bash"
+      zsh: "completions/_{{ .ProjectName }}"
+      fish: "completions/{{ .ProjectName }}.fish"
+
 nix:
   - name: kubectl-netdrill
     repository:
@@ -80,8 +121,16 @@ nix:
     description: kubectl-netdrill
     path: pkgs/kubectl-netdrill/default.nix
     license: mit
-    # extra_install: |-
-    #   # Add completions or manpages here if available in the future
+    extra_install: |-
+      installManPage manpages/kubectl-netdrill.1.gz
+      installManPage manpages/kubectl-netdrill-run.1.gz
+      installManPage manpages/kubectl-netdrill-pod.1.gz
+      installManPage manpages/kubectl-netdrill-debug.1.gz
+      installManPage manpages/kubectl-netdrill-deployment.1.gz
+      installShellCompletion --cmd kubectl-netdrill \
+        --bash <($out/bin/kubectl-netdrill completion bash) \
+        --fish <($out/bin/kubectl-netdrill completion fish) \
+        --zsh <($out/bin/kubectl-netdrill completion zsh)
 
 krews:
   - name: netdrill
