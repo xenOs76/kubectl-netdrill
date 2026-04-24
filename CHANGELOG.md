@@ -1,3 +1,16 @@
+## 0.1.5 (2026-04-24)
+
+    New Features
+
+        Added shell completion support for bash, zsh, fish and a CLI command to emit them.
+        Added generated man page documentation for the CLI; manpages included in releases.
+
+    Chores
+
+        Release pipeline updated to build and package completions and manpages across targets.
+        CI/workflow added for code checks and automated releases.
+        Added dependency to support manpage generation.
+
 ## 0.1.4 (2026-04-23)
 
     New Features
