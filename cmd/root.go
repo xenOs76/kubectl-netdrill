@@ -43,4 +43,7 @@ func init() {
 		DefaultImage,
 		"The netdrill image to use",
 	)
+
+	rootCmd.AddCommand(completionCmd)
+	rootCmd.AddCommand(manCmd)
 }
