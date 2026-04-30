@@ -55,7 +55,7 @@ users:
 		t.Run(tt.name, func(t *testing.T) {
 			path := kubeconfigPath
 			if tt.wantErr {
-				path = "/non/existent/path"
+				path = filepath.Join(tmpDir, "nonexistent")
 			}
 
 			tt.configFlags.KubeConfig = &path
