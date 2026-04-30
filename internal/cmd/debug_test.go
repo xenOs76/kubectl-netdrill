@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/xenos76/kubectl-netdrill/internal/k8s"
 	"github.com/xenos76/kubectl-netdrill/internal/term"
 	corev1 "k8s.io/api/core/v1"
@@ -26,12 +27,15 @@ func TestDebugCmd(t *testing.T) {
 	defer func() { k8s.ClientProvider = originalProvider }()
 
 	fakeClient := fake.NewSimpleClientset()
-	_, _ = fakeClient.CoreV1().Pods("default").Create(context.Background(), &corev1.Pod{
+	_, err := fakeClient.CoreV1().Pods("default").Create(context.Background(), &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{Name: "netdrill", Namespace: "default"},
 	}, metav1.CreateOptions{})
-	_, _ = fakeClient.CoreV1().Pods("default").Create(context.Background(), &corev1.Pod{
+	require.NoError(t, err)
+
+	_, err = fakeClient.CoreV1().Pods("default").Create(context.Background(), &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{Name: "test-pod", Namespace: "default"},
 	}, metav1.CreateOptions{})
+	require.NoError(t, err)
 
 	k8s.ClientProvider = func(_ *genericclioptions.ConfigFlags) (kubernetes.Interface, *rest.Config, error) {
 		return fakeClient, &rest.Config{}, nil
