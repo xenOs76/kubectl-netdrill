@@ -43,12 +43,12 @@ func (s *SizeQueue) MonitorSize(ctx context.Context) {
 	defer signal.Stop(sigChan)
 
 	// Send initial size
-	s.updateSize()
+	s.updateSize(ctx)
 
 	for {
 		select {
 		case <-sigChan:
-			s.updateSize()
+			s.updateSize(ctx)
 		case <-ctx.Done():
 			return
 		}
@@ -56,15 +56,32 @@ func (s *SizeQueue) MonitorSize(ctx context.Context) {
 }
 
 // updateSize gets the current terminal size and sends it to the resize channel.
-func (s *SizeQueue) updateSize() {
+// It is non-blocking and preserves "latest" semantics if the channel is full.
+func (s *SizeQueue) updateSize(ctx context.Context) {
 	size, err := getWinsize(os.Stdin.Fd())
 	if err != nil {
 		return
 	}
 
-	s.resizeChan <- remotecommand.TerminalSize{
+	ts := remotecommand.TerminalSize{
 		Width:  size.Width,
 		Height: size.Height,
+	}
+
+	select {
+	case s.resizeChan <- ts:
+	case <-ctx.Done():
+	default:
+		// Channel is full, consume old value to preserve latest semantics
+		select {
+		case <-s.resizeChan:
+		default:
+		}
+		// Now send the latest size
+		select {
+		case s.resizeChan <- ts:
+		case <-ctx.Done():
+		}
 	}
 }
 
