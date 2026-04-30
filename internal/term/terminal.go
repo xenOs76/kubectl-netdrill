@@ -1,6 +1,7 @@
 package term
 
 import (
+	"context"
 	"os"
 	"os/signal"
 	"syscall"
@@ -9,11 +10,15 @@ import (
 	"k8s.io/client-go/tools/remotecommand"
 )
 
+// getWinsize is a function variable for term.GetWinsize to allow mocking in tests.
+var getWinsize = term.GetWinsize
+
 // SizeQueue implements remotecommand.TerminalSizeQueue
 type SizeQueue struct {
 	resizeChan chan remotecommand.TerminalSize
 }
 
+// NewSizeQueue creates a new SizeQueue.
 func NewSizeQueue() *SizeQueue {
 	return &SizeQueue{
 		resizeChan: make(chan remotecommand.TerminalSize, 1),
@@ -31,7 +36,7 @@ func (s *SizeQueue) Next() *remotecommand.TerminalSize {
 }
 
 // MonitorSize watches for SIGWINCH signals and updates the size queue.
-func (s *SizeQueue) MonitorSize() {
+func (s *SizeQueue) MonitorSize(ctx context.Context) {
 	sigChan := make(chan os.Signal, 1)
 
 	signal.Notify(sigChan, syscall.SIGWINCH)
@@ -40,13 +45,19 @@ func (s *SizeQueue) MonitorSize() {
 	// Send initial size
 	s.updateSize()
 
-	for range sigChan {
-		s.updateSize()
+	for {
+		select {
+		case <-sigChan:
+			s.updateSize()
+		case <-ctx.Done():
+			return
+		}
 	}
 }
 
+// updateSize gets the current terminal size and sends it to the resize channel.
 func (s *SizeQueue) updateSize() {
-	size, err := term.GetWinsize(os.Stdin.Fd())
+	size, err := getWinsize(os.Stdin.Fd())
 	if err != nil {
 		return
 	}
@@ -61,6 +72,9 @@ func (s *SizeQueue) updateSize() {
 func (s *SizeQueue) Close() {
 	close(s.resizeChan)
 }
+
+// RawModeSetter is a function variable for SetRawMode to allow mocking in tests.
+var RawModeSetter = SetRawMode
 
 // SetRawMode puts the terminal in raw mode and returns a function to restore it.
 func SetRawMode() (func(), error) {

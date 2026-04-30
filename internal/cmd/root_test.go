@@ -1,11 +1,23 @@
 package cmd
 
 import (
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"k8s.io/client-go/tools/remotecommand"
 )
+
+type mockExecutor struct{}
+
+func (*mockExecutor) Stream(_ remotecommand.StreamOptions) error {
+	return nil
+}
+
+func (*mockExecutor) StreamWithContext(_ context.Context, _ remotecommand.StreamOptions) error {
+	return nil
+}
 
 func TestRootCmdExecute(t *testing.T) {
 	rootCmd.SetArgs([]string{"--help"})

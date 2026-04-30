@@ -18,8 +18,10 @@ var manCmd = &cobra.Command{
 		}
 
 		target := cmd.Root()
+
 		if len(args) > 0 {
 			var err error
+
 			target, _, err = cmd.Root().Find(args)
 			if err != nil {
 				return err

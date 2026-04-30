@@ -3,15 +3,40 @@ package k8s
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"os"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/remotecommand"
 )
+
+// AttachURLGetter is a function variable for creating a REST request URL for attach operations.
+var AttachURLGetter = func(client kubernetes.Interface, namespace, podName, containerName string) (*url.URL, error) {
+	req := client.CoreV1().RESTClient().Post().
+		Namespace(namespace).
+		Resource("pods").
+		Name(podName).
+		SubResource("attach")
+
+	req.VersionedParams(&corev1.PodAttachOptions{
+		Container: containerName,
+		Stdin:     true,
+		Stdout:    true,
+		Stderr:    true,
+		TTY:       true,
+	}, scheme.ParameterCodec)
+
+	return req.URL(), nil
+}
+
+// SPDYExecutorCreator is a function variable for remotecommand.NewSPDYExecutor to allow mocking in tests.
+var SPDYExecutorCreator = remotecommand.NewSPDYExecutor
 
 // PodOptions defines options for creating a troubleshooting Pod.
 type PodOptions struct {
@@ -62,7 +87,7 @@ func CreatePod(ctx context.Context, client kubernetes.Interface, opts PodOptions
 }
 
 // WaitForPodReady waits until the Pod is in Running state.
-func WaitForPodReady(ctx context.Context, client kubernetes.Interface, namespace, podName string) error {
+var WaitForPodReady = func(ctx context.Context, client kubernetes.Interface, namespace, podName string) error {
 	watch, err := client.CoreV1().Pods(namespace).Watch(ctx, metav1.ListOptions{
 		FieldSelector: fmt.Sprintf("metadata.name=%s", podName),
 	})
@@ -83,7 +108,7 @@ func WaitForPodReady(ctx context.Context, client kubernetes.Interface, namespace
 				return nil
 			}
 
-			if pod.Status.Phase == corev1.PodFailed || pod.Status.Phase == corev1.PodSucceeded {
+			if pod.Status.Phase == corev1.PodSucceeded || pod.Status.Phase == corev1.PodFailed {
 				return fmt.Errorf("pod %s terminated early with phase %s", podName, pod.Status.Phase)
 			}
 		case <-ctx.Done():
@@ -94,23 +119,14 @@ func WaitForPodReady(ctx context.Context, client kubernetes.Interface, namespace
 
 // AttachToPod attaches the current terminal to the Pod's container.
 func AttachToPod(ctx context.Context, client kubernetes.Interface, config *rest.Config,
-	namespace, podName, pgkContainerName string, tsq remotecommand.TerminalSizeQueue,
+	namespace, podName, containerName string, tsq remotecommand.TerminalSizeQueue,
 ) error {
-	req := client.CoreV1().RESTClient().Post().
-		Resource("pods").
-		Name(podName).
-		Namespace(namespace).
-		SubResource("attach")
+	u, err := AttachURLGetter(client, namespace, podName, containerName)
+	if err != nil {
+		return err
+	}
 
-	req.VersionedParams(&corev1.PodAttachOptions{
-		Container: pgkContainerName,
-		Stdin:     true,
-		Stdout:    true,
-		Stderr:    true,
-		TTY:       true,
-	}, scheme.ParameterCodec)
-
-	executor, err := remotecommand.NewSPDYExecutor(config, "POST", req.URL())
+	executor, err := SPDYExecutorCreator(config, "POST", u)
 	if err != nil {
 		return err
 	}
@@ -124,7 +140,35 @@ func AttachToPod(ctx context.Context, client kubernetes.Interface, config *rest.
 	})
 }
 
+// MonitorPodStatus monitors the status of a pod until it is Running or Terminated.
+var MonitorPodStatus = func(ctx context.Context, client kubernetes.Interface, namespace, podName string) error {
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(100 * time.Millisecond):
+			pod, err := client.CoreV1().Pods(namespace).Get(ctx, podName, metav1.GetOptions{})
+			if err != nil {
+				return err
+			}
+
+			if pod.Status.Phase == corev1.PodRunning {
+				return nil
+			}
+
+			if pod.Status.Phase == corev1.PodSucceeded || pod.Status.Phase == corev1.PodFailed {
+				return fmt.Errorf("pod %s terminated early with phase %s", podName, pod.Status.Phase)
+			}
+		}
+	}
+}
+
 // DeletePod deletes the specified Pod.
 func DeletePod(ctx context.Context, client kubernetes.Interface, namespace, podName string) error {
-	return client.CoreV1().Pods(namespace).Delete(ctx, podName, metav1.DeleteOptions{})
+	err := client.CoreV1().Pods(namespace).Delete(ctx, podName, metav1.DeleteOptions{})
+	if err != nil && errors.IsNotFound(err) {
+		return nil
+	}
+
+	return err
 }

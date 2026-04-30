@@ -3,7 +3,7 @@ package main
 import (
 	"os"
 
-	"github.com/xenos76/kubectl-netdrill/cmd"
+	"github.com/xenos76/kubectl-netdrill/internal/cmd"
 )
 
 func main() {
