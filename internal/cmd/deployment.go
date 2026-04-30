@@ -5,17 +5,23 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
-	"github.com/xenos76/kubectl-netdrill/pkg/k8s"
+	"github.com/xenos76/kubectl-netdrill/internal/k8s"
 	corev1 "k8s.io/api/core/v1"
 )
 
 var (
-	Replicas      int32
-	CPURequest    string
+	// Replicas is the number of pod replicas for the deployment.
+	Replicas int32
+	// CPURequest is the CPU resource request.
+	CPURequest string
+	// MemoryRequest is the memory resource request.
 	MemoryRequest string
-	CPULimit      string
-	MemoryLimit   string
-	Labels        map[string]string
+	// CPULimit is the CPU resource limit.
+	CPULimit string
+	// MemoryLimit is the memory resource limit.
+	MemoryLimit string
+	// Labels are additional labels for the deployment.
+	Labels map[string]string
 )
 
 var deploymentCmd = &cobra.Command{
@@ -29,11 +35,12 @@ Unlike 'run', this deployment is not automatically deleted.`,
 		if len(args) > 0 {
 			deployName = args[0]
 		}
+
 		appLabel := deployName
 
 		ctx := context.Background()
 
-		client, _, err := k8s.GetClient(ConfigFlags)
+		client, _, err := k8s.ClientProvider(ConfigFlags)
 		if err != nil {
 			return fmt.Errorf("getting client: %w", err)
 		}
@@ -76,6 +83,7 @@ Unlike 'run', this deployment is not automatically deleted.`,
 		}
 
 		fmt.Printf("Creating deployment %s in namespace %s...\n", deployName, namespace)
+
 		_, err = k8s.CreateDeployment(ctx, client, opts)
 		if err != nil {
 			return fmt.Errorf("creating deployment: %w", err)

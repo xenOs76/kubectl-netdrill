@@ -100,6 +100,7 @@ func CreateDeployment(
 	return client.AppsV1().Deployments(opts.Namespace).Create(ctx, deployment, metav1.CreateOptions{})
 }
 
+// buildResources creates ResourceRequirements from DeploymentOptions.
 func buildResources(opts DeploymentOptions) (corev1.ResourceRequirements, error) {
 	var err error
 
@@ -129,6 +130,7 @@ func buildResources(opts DeploymentOptions) (corev1.ResourceRequirements, error)
 	return resources, nil
 }
 
+// parseResource parses a string value into a Quantity and adds it to the ResourceList.
 func parseResource(
 	val, name string,
 	list corev1.ResourceList,

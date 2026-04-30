@@ -3,3 +3,5 @@ kubectl-netdrill
 lint.out
 cover*out
 manpages
+.vscode
+.scannerwork

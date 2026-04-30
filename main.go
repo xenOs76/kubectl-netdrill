@@ -1,9 +1,10 @@
+// Package main is the entry point for kubectl-netdrill.
 package main
 
 import (
 	"os"
 
-	"github.com/xenos76/kubectl-netdrill/cmd"
+	"github.com/xenos76/kubectl-netdrill/internal/cmd"
 )
 
 func main() {

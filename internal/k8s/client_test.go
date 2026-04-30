@@ -44,11 +44,21 @@ users:
 			configFlags: genericclioptions.NewConfigFlags(true),
 			wantErr:     false,
 		},
+		{
+			name:        "invalid config flags",
+			configFlags: genericclioptions.NewConfigFlags(true),
+			wantErr:     true,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tt.configFlags.KubeConfig = &kubeconfigPath
+			path := kubeconfigPath
+			if tt.wantErr {
+				path = filepath.Join(tmpDir, "nonexistent")
+			}
+
+			tt.configFlags.KubeConfig = &path
 
 			client, config, err := GetClient(tt.configFlags)
 			if tt.wantErr {

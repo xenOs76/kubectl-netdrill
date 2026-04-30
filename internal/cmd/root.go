@@ -1,3 +1,4 @@
+// Package cmd implements the CLI commands for kubectl-netdrill.
 package cmd
 
 import (
@@ -6,15 +7,24 @@ import (
 )
 
 var (
-	ConfigFlags    *genericclioptions.ConfigFlags
-	DefaultImage   = "ghcr.io/xenos76/netdrill:latest"
-	Image          string
-	NodeSelector   map[string]string
-	Version        = "dev"
+	// ConfigFlags holds the configuration flags for the Kubernetes client.
+	ConfigFlags *genericclioptions.ConfigFlags
+	// DefaultImage is the default image used for troubleshooting containers.
+	DefaultImage = "ghcr.io/xenos76/netdrill:latest"
+	// Image is the container image to use.
+	Image string
+	// NodeSelector defines labels for scheduling pods.
+	NodeSelector map[string]string
+	// Version is the application version.
+	Version = "dev"
+	// ServiceAccount is the name of the service account to use for pods.
 	ServiceAccount string
-	Ports          []int32
-	EnvVars        map[string]string
-	HostNetwork    bool
+	// Ports are the container ports to expose.
+	Ports []int32
+	// EnvVars are the environment variables for the container.
+	EnvVars map[string]string
+	// HostNetwork specifies if host networking should be used.
+	HostNetwork bool
 )
 
 var rootCmd = &cobra.Command{

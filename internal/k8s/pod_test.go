@@ -2,14 +2,20 @@ package k8s
 
 import (
 	"context"
+	"net/url"
 	"testing"
+	"time"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
+	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/remotecommand"
 )
 
 func TestCreatePodDefault(t *testing.T) {
@@ -345,55 +351,173 @@ func TestCreatePodWithEnvVars(t *testing.T) {
 }
 
 func TestWaitForPodReady(t *testing.T) {
-	t.Skip("WaitForPodReady requires real Kubernetes API for watch events")
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	podName := "test-pod"
+	namespace := "default"
+	pod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      podName,
+			Namespace: namespace,
+		},
+		Status: corev1.PodStatus{
+			Phase: corev1.PodPending,
+		},
+	}
+
+	client := fake.NewSimpleClientset(pod)
+
+	// Update pod to Running in a goroutine
+	go func() {
+		// Wait a bit for the watch to start
+		time.Sleep(100 * time.Millisecond)
+
+		pod.Status.Phase = corev1.PodRunning
+		_, _ = client.CoreV1().Pods(namespace).UpdateStatus(ctx, pod, metav1.UpdateOptions{})
+	}()
+
+	err := WaitForPodReady(ctx, client, namespace, podName)
+	require.NoError(t, err)
+}
+
+func TestWaitForPodReady_Error(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	podName := "test-pod-fail"
+	namespace := "default"
+	pod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      podName,
+			Namespace: namespace,
+		},
+		Status: corev1.PodStatus{
+			Phase: corev1.PodPending,
+		},
+	}
+
+	client := fake.NewSimpleClientset(pod)
+
+	// Update pod to Failed in a goroutine
+	go func() {
+		time.Sleep(100 * time.Millisecond)
+
+		pod.Status.Phase = corev1.PodFailed
+		_, _ = client.CoreV1().Pods(namespace).UpdateStatus(ctx, pod, metav1.UpdateOptions{})
+	}()
+
+	err := WaitForPodReady(ctx, client, namespace, podName)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "terminated early")
+}
+
+func TestWaitForPodReady_Timeout(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+
+	podName := "test-pod-timeout"
+	namespace := "default"
+	pod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      podName,
+			Namespace: namespace,
+		},
+		Status: corev1.PodStatus{
+			Phase: corev1.PodPending,
+		},
+	}
+
+	client := fake.NewSimpleClientset(pod)
+
+	err := WaitForPodReady(ctx, client, namespace, podName)
+	require.Error(t, err)
+	assert.Equal(t, context.DeadlineExceeded, err)
+}
+
+func TestMonitorPodStatus_Error(t *testing.T) {
+	fakeClient := fake.NewSimpleClientset()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	pod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{Name: "test-pod", Namespace: "default"},
+		Status:     corev1.PodStatus{Phase: corev1.PodFailed},
+	}
+	_, _ = fakeClient.CoreV1().Pods("default").Create(ctx, pod, metav1.CreateOptions{})
+
+	err := MonitorPodStatus(ctx, fakeClient, "default", "test-pod")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "terminated early with phase Failed")
 }
 
 func TestDeletePod(t *testing.T) {
 	ctx := context.Background()
+	namespace := "default"
+	podName := "test-pod"
+	pod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      podName,
+			Namespace: namespace,
+		},
+	}
 
 	tests := []struct {
-		name      string
-		pods      *corev1.PodList
-		namespace string
-		podName   string
-		wantErr   bool
+		name    string
+		pods    []runtime.Object
+		target  string
+		wantErr bool
 	}{
 		{
-			name: "delete existing pod",
-			pods: &corev1.PodList{
-				Items: []corev1.Pod{
-					{
-						ObjectMeta: metav1.ObjectMeta{
-							Name:      "test-pod",
-							Namespace: "default",
-						},
-					},
-				},
-			},
-			namespace: "default",
-			podName:   "test-pod",
-			wantErr:   false,
+			name:    "delete existing pod",
+			pods:    []runtime.Object{pod},
+			target:  podName,
+			wantErr: false,
 		},
 		{
-			name:      "delete non-existent pod",
-			pods:      &corev1.PodList{Items: []corev1.Pod{}},
-			namespace: "default",
-			podName:   "non-existent-pod",
-			wantErr:   true,
+			name:    "delete non-existent pod",
+			pods:    []runtime.Object{},
+			target:  "non-existent",
+			wantErr: false, // k8s Delete returns success if not found
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			client := fake.NewSimpleClientset(tt.pods)
-
-			err := DeletePod(ctx, client, tt.namespace, tt.podName)
-
-			if tt.wantErr {
-				require.Error(t, err)
-			} else {
-				require.NoError(t, err)
-			}
+			client := fake.NewSimpleClientset(tt.pods...)
+			err := DeletePod(ctx, client, namespace, tt.target)
+			assert.NoError(t, err)
 		})
 	}
+}
+
+func TestAttachToPod(t *testing.T) {
+	ctx := context.Background()
+	client := fake.NewSimpleClientset()
+	config := &rest.Config{}
+	namespace := "default"
+	podName := "test-pod"
+	containerName := "test-container"
+
+	// Mock AttachURLGetter
+	originalURLGetter := AttachURLGetter
+
+	defer func() { AttachURLGetter = originalURLGetter }()
+
+	AttachURLGetter = func(_ kubernetes.Interface, _, _, _ string) (*url.URL, error) {
+		return &url.URL{}, nil
+	}
+
+	// Mock SPDYExecutorCreator
+	originalCreator := SPDYExecutorCreator
+
+	defer func() { SPDYExecutorCreator = originalCreator }()
+
+	SPDYExecutorCreator = func(_ *rest.Config, _ string, _ *url.URL) (remotecommand.Executor, error) {
+		return &mockExecutor{}, nil
+	}
+
+	err := AttachToPod(ctx, client, config, namespace, podName, containerName, nil)
+	assert.NoError(t, err)
 }

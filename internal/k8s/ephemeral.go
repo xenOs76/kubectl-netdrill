@@ -8,7 +8,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/remotecommand"
 )
@@ -51,8 +50,10 @@ func AddEphemeralContainer(ctx context.Context, client kubernetes.Interface, opt
 	return err
 }
 
-// WaitForEphemeralContainerReady waits until the ephemeral container is in Running state.
-func WaitForEphemeralContainerReady(ctx context.Context, client kubernetes.Interface,
+// WaitForEphemeralContainerReady waits for the ephemeral container to be ready.
+var WaitForEphemeralContainerReady = func(
+	ctx context.Context,
+	client kubernetes.Interface,
 	namespace, podName, containerName string,
 ) error {
 	watch, err := client.CoreV1().Pods(namespace).Watch(ctx, metav1.ListOptions{
@@ -82,6 +83,7 @@ func WaitForEphemeralContainerReady(ctx context.Context, client kubernetes.Inter
 	}
 }
 
+// checkEphemeralContainer checks if the named ephemeral container is running in the pod.
 func checkEphemeralContainer(pod *corev1.Pod, name string) (bool, error) {
 	for _, status := range pod.Status.EphemeralContainerStatuses {
 		if status.Name == name {
@@ -99,24 +101,15 @@ func checkEphemeralContainer(pod *corev1.Pod, name string) (bool, error) {
 }
 
 // AttachToEphemeralContainer attaches to the ephemeral container.
-func AttachToEphemeralContainer(ctx context.Context, client kubernetes.Interface,
-	config *rest.Config, namespace, podName, containerName string, tsq remotecommand.TerminalSizeQueue,
+func AttachToEphemeralContainer(ctx context.Context, client kubernetes.Interface, config *rest.Config,
+	namespace, podName, containerName string, tsq remotecommand.TerminalSizeQueue,
 ) error {
-	req := client.CoreV1().RESTClient().Post().
-		Resource("pods").
-		Name(podName).
-		Namespace(namespace).
-		SubResource("attach")
+	u, err := AttachURLGetter(client, namespace, podName, containerName)
+	if err != nil {
+		return err
+	}
 
-	req.VersionedParams(&corev1.PodAttachOptions{
-		Container: containerName,
-		Stdin:     true,
-		Stdout:    true,
-		Stderr:    true,
-		TTY:       true,
-	}, scheme.ParameterCodec)
-
-	executor, err := remotecommand.NewSPDYExecutor(config, "POST", req.URL())
+	executor, err := SPDYExecutorCreator(config, "POST", u)
 	if err != nil {
 		return err
 	}

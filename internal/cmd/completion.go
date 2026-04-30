@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -51,7 +52,7 @@ PowerShell:
 	DisableFlagsInUseLine: true,
 	ValidArgs:             []string{"bash", "zsh", "fish", "powershell"},
 	Args:                  cobra.ExactValidArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		switch args[0] {
 		case "bash":
 			_ = cmd.Root().GenBashCompletion(os.Stdout)
@@ -61,6 +62,10 @@ PowerShell:
 			_ = cmd.Root().GenFishCompletion(os.Stdout, true)
 		case "powershell":
 			_ = cmd.Root().GenPowerShellCompletionWithDesc(os.Stdout)
+		default:
+			return fmt.Errorf("unsupported shell %s", args[0])
 		}
+
+		return nil
 	},
 }

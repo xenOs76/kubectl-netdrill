@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
-	"github.com/xenos76/kubectl-netdrill/pkg/k8s"
+	"github.com/xenos76/kubectl-netdrill/internal/k8s"
 	corev1 "k8s.io/api/core/v1"
 )
 
@@ -22,7 +22,7 @@ var podCmd = &cobra.Command{
 
 		ctx := context.Background()
 
-		client, _, err := k8s.GetClient(ConfigFlags)
+		client, _, err := k8s.ClientProvider(ConfigFlags)
 		if err != nil {
 			return fmt.Errorf("getting client: %w", err)
 		}
@@ -56,6 +56,7 @@ var podCmd = &cobra.Command{
 		}
 
 		fmt.Printf("Creating pod %s in namespace %s...\n", podName, namespace)
+
 		_, err = k8s.CreatePod(ctx, client, opts)
 		if err != nil {
 			return fmt.Errorf("creating pod: %w", err)

@@ -1,13 +1,41 @@
 package term
 
 import (
+	"context"
 	"testing"
 	"time"
 
+	"github.com/moby/term"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"k8s.io/client-go/tools/remotecommand"
 )
+
+func TestSizeQueue_MonitorSize(t *testing.T) {
+	sq := NewSizeQueue()
+	defer sq.Close()
+
+	// Mock getWinsize
+	originalGetWinsize := getWinsize
+
+	defer func() { getWinsize = originalGetWinsize }()
+
+	getWinsize = func(_ uintptr) (*term.Winsize, error) {
+		return &term.Winsize{Width: 100, Height: 40}, nil
+	}
+
+	t.Run("monitor size loop", func(t *testing.T) {
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		go sq.MonitorSize(ctx)
+
+		// MonitorSize should have sent initial size
+		size := sq.Next()
+		require.NotNil(t, size)
+		assert.Equal(t, uint16(100), size.Width)
+
+		cancel()
+	})
+}
 
 func TestNewSizeQueue(t *testing.T) {
 	sq := NewSizeQueue()

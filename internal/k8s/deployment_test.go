@@ -65,3 +65,19 @@ func TestCreateDeployment_LabelOverride(t *testing.T) {
 	assert.Equal(t, "netdrill", deploy.Labels["app"], "selector label 'app' should NOT be overridable by user labels")
 	assert.Equal(t, "bar", deploy.Labels["foo"], "other user labels should still be applied")
 }
+
+func TestCreateDeployment_InvalidResources(t *testing.T) {
+	client := fake.NewSimpleClientset()
+	opts := DeploymentOptions{
+		PodOptions: PodOptions{
+			Namespace: "default",
+			PodName:   "netdrill",
+			Image:     "netdrill",
+		},
+		CPURequest: "invalid",
+	}
+
+	_, err := CreateDeployment(context.Background(), client, opts)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid cpu-request")
+}

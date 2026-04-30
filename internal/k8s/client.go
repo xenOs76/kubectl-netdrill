@@ -1,3 +1,4 @@
+// Package k8s provides Kubernetes client and resource management functionality.
 package k8s
 
 import (
@@ -6,8 +7,11 @@ import (
 	"k8s.io/client-go/rest"
 )
 
+// ClientProvider defines a function that returns a Kubernetes client and rest config.
+var ClientProvider = GetClient
+
 // GetClient returns a Kubernetes clientset using the provided config flags.
-func GetClient(configFlags *genericclioptions.ConfigFlags) (*kubernetes.Clientset, *rest.Config, error) {
+func GetClient(configFlags *genericclioptions.ConfigFlags) (kubernetes.Interface, *rest.Config, error) {
 	config, err := configFlags.ToRESTConfig()
 	if err != nil {
 		return nil, nil, err

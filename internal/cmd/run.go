@@ -8,10 +8,11 @@ import (
 	"syscall"
 
 	"github.com/spf13/cobra"
-	"github.com/xenos76/kubectl-netdrill/pkg/k8s"
-	"github.com/xenos76/kubectl-netdrill/pkg/term"
+	"github.com/xenos76/kubectl-netdrill/internal/k8s"
+	"github.com/xenos76/kubectl-netdrill/internal/term"
 )
 
+// Command is the command to run in the container.
 var Command []string
 
 var runCmd = &cobra.Command{
@@ -31,12 +32,13 @@ var runCmd = &cobra.Command{
 		// Handle termination signals
 		sigChan := make(chan os.Signal, 1)
 		signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
+
 		go func() {
 			<-sigChan
 			cancel()
 		}()
 
-		client, config, err := k8s.GetClient(ConfigFlags)
+		client, config, err := k8s.ClientProvider(ConfigFlags)
 		if err != nil {
 			return fmt.Errorf("getting client: %w", err)
 		}
@@ -56,6 +58,7 @@ var runCmd = &cobra.Command{
 		}
 
 		fmt.Printf("Creating pod %s in namespace %s...\n", podName, namespace)
+
 		_, err = k8s.CreatePod(ctx, client, opts)
 		if err != nil {
 			return fmt.Errorf("creating pod: %w", err)
@@ -64,12 +67,14 @@ var runCmd = &cobra.Command{
 		// Ensure pod is deleted on exit
 		defer func() {
 			fmt.Printf("\nDeleting pod %s...\n", podName)
+
 			if err := k8s.DeletePod(context.Background(), client, namespace, podName); err != nil {
 				fmt.Printf("Error deleting pod: %v\n", err)
 			}
 		}()
 
 		fmt.Printf("Waiting for pod %s to be ready...\n", podName)
+
 		if err := k8s.WaitForPodReady(ctx, client, namespace, podName); err != nil {
 			return fmt.Errorf("waiting for pod: %w", err)
 		}
@@ -78,10 +83,11 @@ var runCmd = &cobra.Command{
 
 		// Setup terminal for interactive session
 		tsq := term.NewSizeQueue()
-		go tsq.MonitorSize()
+
+		go tsq.MonitorSize(ctx)
 		defer tsq.Close()
 
-		restore, err := term.SetRawMode()
+		restore, err := term.RawModeSetter()
 		if err != nil {
 			fmt.Printf("Error setting raw mode: %v\n", err)
 		} else {
