@@ -219,7 +219,7 @@ func TestCheckEphemeralContainerNotFound(t *testing.T) {
 }
 
 func TestWaitForEphemeralContainerReady(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	podName := "test-pod"
@@ -260,7 +260,7 @@ func TestWaitForEphemeralContainerReady(t *testing.T) {
 }
 
 func TestWaitForEphemeralContainerReady_Error(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	podName := "test-pod-fail"

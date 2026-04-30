@@ -25,7 +25,7 @@ func TestSizeQueue_MonitorSize(t *testing.T) {
 	}
 
 	t.Run("monitor size loop", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 		go sq.MonitorSize(ctx)
 
 		// MonitorSize should have sent initial size

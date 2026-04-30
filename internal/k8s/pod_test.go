@@ -351,7 +351,7 @@ func TestCreatePodWithEnvVars(t *testing.T) {
 }
 
 func TestWaitForPodReady(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	podName := "test-pod"
@@ -382,7 +382,7 @@ func TestWaitForPodReady(t *testing.T) {
 }
 
 func TestWaitForPodReady_Error(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	podName := "test-pod-fail"
