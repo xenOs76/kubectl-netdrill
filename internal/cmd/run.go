@@ -84,7 +84,7 @@ var runCmd = &cobra.Command{
 		// Setup terminal for interactive session
 		tsq := term.NewSizeQueue()
 
-		go tsq.MonitorSize(context.Background())
+		go tsq.MonitorSize(ctx)
 		defer tsq.Close()
 
 		restore, err := term.RawModeSetter()
