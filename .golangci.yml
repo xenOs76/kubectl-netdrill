@@ -38,7 +38,7 @@ linters:
           disabled: true
           exclude: [""]
         - name: exported
-          disabled: true
+          disabled: false
 
         - name: line-length-limit
           severity: warning
@@ -63,7 +63,6 @@ linters:
   exclusions:
     generated: lax
     presets:
-      - comments
       - common-false-positives
       - legacy
       - std-error-handling

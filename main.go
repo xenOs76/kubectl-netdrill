@@ -1,3 +1,4 @@
+// Package main is the entry point for kubectl-netdrill.
 package main
 
 import (

@@ -1,3 +1,4 @@
+// Package term provides terminal handling and TTY management for interactive sessions.
 package term
 
 import (

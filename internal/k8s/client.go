@@ -1,3 +1,4 @@
+// Package k8s provides Kubernetes client and resource management functionality.
 package k8s
 
 import (
