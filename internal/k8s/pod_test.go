@@ -544,12 +544,13 @@ func TestCreatePodWithEKSToken(t *testing.T) {
 	assert.Equal(t, "aws-iam-token", pod.Spec.Volumes[0].Name)
 	assert.NotNil(t, pod.Spec.Volumes[0].Projected)
 	assert.Equal(t, "sts.amazonaws.com", pod.Spec.Volumes[0].Projected.Sources[0].ServiceAccountToken.Audience)
+	assert.Equal(t, "path", pod.Spec.Volumes[0].Projected.Sources[0].ServiceAccountToken.Path)
 
 	// Verify volume mount was added
 	assert.Len(t, pod.Spec.Containers[0].VolumeMounts, 1)
 	assert.Equal(t, "aws-iam-token", pod.Spec.Containers[0].VolumeMounts[0].Name)
-	assert.Equal(t, "/custom/token/path", pod.Spec.Containers[0].VolumeMounts[0].MountPath)
-	assert.Equal(t, "token", pod.Spec.Containers[0].VolumeMounts[0].SubPath)
+	assert.Equal(t, "/custom/token", pod.Spec.Containers[0].VolumeMounts[0].MountPath)
+	assert.Empty(t, pod.Spec.Containers[0].VolumeMounts[0].SubPath)
 }
 
 func TestCreatePodWithEKSRole(t *testing.T) {
@@ -569,11 +570,13 @@ func TestCreatePodWithEKSRole(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, pod)
 
-	// Verify volume was added with default path
+	// Verify volume was added with default path components
 	assert.Len(t, pod.Spec.Volumes, 1)
+	assert.Equal(t, "token", pod.Spec.Volumes[0].Projected.Sources[0].ServiceAccountToken.Path)
+
 	assert.Len(t, pod.Spec.Containers[0].VolumeMounts, 1)
 
-	wantPath := "/var/run/secrets/eks.amazonaws.com/serviceaccount/token"
+	wantPath := "/var/run/secrets/eks.amazonaws.com/serviceaccount"
 	assert.Equal(t, wantPath, pod.Spec.Containers[0].VolumeMounts[0].MountPath)
-	assert.Equal(t, "token", pod.Spec.Containers[0].VolumeMounts[0].SubPath)
+	assert.Empty(t, pod.Spec.Containers[0].VolumeMounts[0].SubPath)
 }

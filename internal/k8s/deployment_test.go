@@ -103,9 +103,13 @@ func TestCreateDeploymentWithEKSToken(t *testing.T) {
 	// Verify volume was added to template
 	assert.Len(t, deploy.Spec.Template.Spec.Volumes, 1)
 	assert.Equal(t, "aws-iam-token", deploy.Spec.Template.Spec.Volumes[0].Name)
+	assert.Equal(t, "token", deploy.Spec.Template.Spec.Volumes[0].Projected.Sources[0].ServiceAccountToken.Path)
 
 	// Verify volume mount was added to container
 	assert.Len(t, deploy.Spec.Template.Spec.Containers[0].VolumeMounts, 1)
 	assert.Equal(t, "aws-iam-token", deploy.Spec.Template.Spec.Containers[0].VolumeMounts[0].Name)
-	assert.Equal(t, "token", deploy.Spec.Template.Spec.Containers[0].VolumeMounts[0].SubPath)
+
+	wantPath := "/var/run/secrets/eks.amazonaws.com/serviceaccount"
+	assert.Equal(t, wantPath, deploy.Spec.Template.Spec.Containers[0].VolumeMounts[0].MountPath)
+	assert.Empty(t, deploy.Spec.Template.Spec.Containers[0].VolumeMounts[0].SubPath)
 }

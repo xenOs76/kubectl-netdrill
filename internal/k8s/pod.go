@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	"path"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -127,6 +128,9 @@ func ensureEKSToken(spec *corev1.PodSpec) {
 	}
 
 	expiration := int64(86400)
+	tokenFile := path.Base(tokenPath)
+	tokenDir := path.Dir(tokenPath)
+
 	spec.Volumes = append(spec.Volumes, corev1.Volume{
 		Name: volumeName,
 		VolumeSource: corev1.VolumeSource{
@@ -136,7 +140,7 @@ func ensureEKSToken(spec *corev1.PodSpec) {
 						ServiceAccountToken: &corev1.ServiceAccountTokenProjection{
 							Audience:          "sts.amazonaws.com",
 							ExpirationSeconds: &expiration,
-							Path:              "token",
+							Path:              tokenFile,
 						},
 					},
 				},
@@ -148,8 +152,7 @@ func ensureEKSToken(spec *corev1.PodSpec) {
 	spec.Containers[0].VolumeMounts = append(spec.Containers[0].VolumeMounts, corev1.VolumeMount{
 		Name:      volumeName,
 		ReadOnly:  true,
-		MountPath: tokenPath,
-		SubPath:   "token",
+		MountPath: tokenDir,
 	})
 }
 
