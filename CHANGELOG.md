@@ -1,3 +1,17 @@
+## 0.1.7 (2026-05-12)
+
+    New Features
+
+        Automatic AWS EKS token support for Pods and Deployments when AWS identity env vars are present, injecting a projected service-account token and mount so IAM roles can be assumed.
+
+    Tests
+
+        Added unit tests validating EKS token volume and mount wiring for Pods and Deployments.
+
+    Chores
+
+        Adjusted a dependency declaration to indirect.
+
 ## 0.1.6 (2026-04-30)
 
     Refactor
