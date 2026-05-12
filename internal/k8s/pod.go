@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	"path"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -83,7 +84,94 @@ func CreatePod(ctx context.Context, client kubernetes.Interface, opts PodOptions
 		},
 	}
 
+	ensureEKSToken(&pod.Spec)
+
 	return client.CoreV1().Pods(opts.Namespace).Create(ctx, pod, metav1.CreateOptions{})
+}
+
+// ensureEKSToken adds a projected service account token volume if EKS IRSA env vars are present.
+// This is a generic way to support IRSA even if the EKS webhook doesn't trigger.
+func ensureEKSToken(spec *corev1.PodSpec) {
+	if len(spec.Containers) == 0 {
+		return
+	}
+
+	tokenPath, hasRole := getEKSTokenConfig(spec)
+
+	if tokenPath == "" && !hasRole {
+		return
+	}
+
+	if tokenPath == "" {
+		tokenPath = "/var/run/secrets/eks.amazonaws.com/serviceaccount/token"
+	}
+
+	addEKSTokenVolume(spec, tokenPath)
+}
+
+func getEKSTokenConfig(spec *corev1.PodSpec) (string, bool) {
+	var tokenPath string
+
+	var hasRole bool
+
+	for _, env := range spec.Containers[0].Env {
+		if env.Name == "AWS_WEB_IDENTITY_TOKEN_FILE" {
+			tokenPath = env.Value
+		}
+
+		if env.Name == "AWS_ROLE_ARN" {
+			hasRole = true
+		}
+	}
+
+	return tokenPath, hasRole
+}
+
+func addEKSTokenVolume(spec *corev1.PodSpec, tokenPath string) {
+	volumeName := "aws-iam-token"
+	volumeExists := false
+
+	for _, v := range spec.Volumes {
+		if v.Name == volumeName {
+			volumeExists = true
+
+			break
+		}
+	}
+
+	if !volumeExists {
+		expiration := int64(86400)
+		tokenFile := path.Base(tokenPath)
+
+		spec.Volumes = append(spec.Volumes, corev1.Volume{
+			Name: volumeName,
+			VolumeSource: corev1.VolumeSource{
+				Projected: &corev1.ProjectedVolumeSource{
+					Sources: []corev1.VolumeProjection{
+						{
+							ServiceAccountToken: &corev1.ServiceAccountTokenProjection{
+								Audience:          "sts.amazonaws.com",
+								ExpirationSeconds: &expiration,
+								Path:              tokenFile,
+							},
+						},
+					},
+				},
+			},
+		})
+	}
+
+	for _, vm := range spec.Containers[0].VolumeMounts {
+		if vm.Name == volumeName {
+			return
+		}
+	}
+
+	spec.Containers[0].VolumeMounts = append(spec.Containers[0].VolumeMounts, corev1.VolumeMount{
+		Name:      volumeName,
+		ReadOnly:  true,
+		MountPath: path.Dir(tokenPath),
+	})
 }
 
 // WaitForPodReady waits until the Pod is in Running state.

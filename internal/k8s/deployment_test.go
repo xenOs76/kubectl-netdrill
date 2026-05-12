@@ -6,6 +6,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes/fake"
 )
 
@@ -80,4 +81,35 @@ func TestCreateDeployment_InvalidResources(t *testing.T) {
 	_, err := CreateDeployment(context.Background(), client, opts)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid cpu-request")
+}
+
+func TestCreateDeploymentWithEKSToken(t *testing.T) {
+	client := fake.NewSimpleClientset()
+	opts := DeploymentOptions{
+		PodOptions: PodOptions{
+			Namespace: "default",
+			PodName:   "test-deploy-eks",
+			Image:     "netdrill",
+			EnvVars: []corev1.EnvVar{
+				{Name: "AWS_ROLE_ARN", Value: "arn:aws:iam::123456789012:role/my-role"},
+			},
+		},
+	}
+
+	deploy, err := CreateDeployment(context.Background(), client, opts)
+	require.NoError(t, err)
+	require.NotNil(t, deploy)
+
+	// Verify volume was added to template
+	assert.Len(t, deploy.Spec.Template.Spec.Volumes, 1)
+	assert.Equal(t, "aws-iam-token", deploy.Spec.Template.Spec.Volumes[0].Name)
+	assert.Equal(t, "token", deploy.Spec.Template.Spec.Volumes[0].Projected.Sources[0].ServiceAccountToken.Path)
+
+	// Verify volume mount was added to container
+	assert.Len(t, deploy.Spec.Template.Spec.Containers[0].VolumeMounts, 1)
+	assert.Equal(t, "aws-iam-token", deploy.Spec.Template.Spec.Containers[0].VolumeMounts[0].Name)
+
+	wantPath := "/var/run/secrets/eks.amazonaws.com/serviceaccount"
+	assert.Equal(t, wantPath, deploy.Spec.Template.Spec.Containers[0].VolumeMounts[0].MountPath)
+	assert.Empty(t, deploy.Spec.Template.Spec.Containers[0].VolumeMounts[0].SubPath)
 }
