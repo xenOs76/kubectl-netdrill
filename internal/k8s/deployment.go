@@ -97,6 +97,8 @@ func CreateDeployment(
 		},
 	}
 
+	ensureEKSToken(&deployment.Spec.Template.Spec)
+
 	return client.AppsV1().Deployments(opts.Namespace).Create(ctx, deployment, metav1.CreateOptions{})
 }
 

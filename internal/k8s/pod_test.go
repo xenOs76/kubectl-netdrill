@@ -521,3 +521,59 @@ func TestAttachToPod(t *testing.T) {
 	err := AttachToPod(ctx, client, config, namespace, podName, containerName, nil)
 	assert.NoError(t, err)
 }
+
+func TestCreatePodWithEKSToken(t *testing.T) {
+	ctx := context.Background()
+	client := fake.NewSimpleClientset()
+
+	opts := PodOptions{
+		Namespace: "default",
+		PodName:   "test-pod-eks",
+		Image:     "netdrill:latest",
+		EnvVars: []corev1.EnvVar{
+			{Name: "AWS_WEB_IDENTITY_TOKEN_FILE", Value: "/custom/token/path"},
+		},
+	}
+
+	pod, err := CreatePod(ctx, client, opts)
+	require.NoError(t, err)
+	require.NotNil(t, pod)
+
+	// Verify volume was added
+	assert.Len(t, pod.Spec.Volumes, 1)
+	assert.Equal(t, "aws-iam-token", pod.Spec.Volumes[0].Name)
+	assert.NotNil(t, pod.Spec.Volumes[0].Projected)
+	assert.Equal(t, "sts.amazonaws.com", pod.Spec.Volumes[0].Projected.Sources[0].ServiceAccountToken.Audience)
+
+	// Verify volume mount was added
+	assert.Len(t, pod.Spec.Containers[0].VolumeMounts, 1)
+	assert.Equal(t, "aws-iam-token", pod.Spec.Containers[0].VolumeMounts[0].Name)
+	assert.Equal(t, "/custom/token/path", pod.Spec.Containers[0].VolumeMounts[0].MountPath)
+	assert.Equal(t, "token", pod.Spec.Containers[0].VolumeMounts[0].SubPath)
+}
+
+func TestCreatePodWithEKSRole(t *testing.T) {
+	ctx := context.Background()
+	client := fake.NewSimpleClientset()
+
+	opts := PodOptions{
+		Namespace: "default",
+		PodName:   "test-pod-eks-role",
+		Image:     "netdrill:latest",
+		EnvVars: []corev1.EnvVar{
+			{Name: "AWS_ROLE_ARN", Value: "arn:aws:iam::123456789012:role/my-role"},
+		},
+	}
+
+	pod, err := CreatePod(ctx, client, opts)
+	require.NoError(t, err)
+	require.NotNil(t, pod)
+
+	// Verify volume was added with default path
+	assert.Len(t, pod.Spec.Volumes, 1)
+	assert.Len(t, pod.Spec.Containers[0].VolumeMounts, 1)
+
+	wantPath := "/var/run/secrets/eks.amazonaws.com/serviceaccount/token"
+	assert.Equal(t, wantPath, pod.Spec.Containers[0].VolumeMounts[0].MountPath)
+	assert.Equal(t, "token", pod.Spec.Containers[0].VolumeMounts[0].SubPath)
+}

@@ -83,7 +83,74 @@ func CreatePod(ctx context.Context, client kubernetes.Interface, opts PodOptions
 		},
 	}
 
+	ensureEKSToken(&pod.Spec)
+
 	return client.CoreV1().Pods(opts.Namespace).Create(ctx, pod, metav1.CreateOptions{})
+}
+
+// ensureEKSToken adds a projected service account token volume if EKS IRSA env vars are present.
+// This is a generic way to support IRSA even if the EKS webhook doesn't trigger.
+func ensureEKSToken(spec *corev1.PodSpec) {
+	if len(spec.Containers) == 0 {
+		return
+	}
+
+	var tokenPath string
+
+	var hasRole bool
+
+	for _, env := range spec.Containers[0].Env {
+		if env.Name == "AWS_WEB_IDENTITY_TOKEN_FILE" {
+			tokenPath = env.Value
+		}
+
+		if env.Name == "AWS_ROLE_ARN" {
+			hasRole = true
+		}
+	}
+
+	if tokenPath == "" && !hasRole {
+		return
+	}
+
+	if tokenPath == "" {
+		tokenPath = "/var/run/secrets/eks.amazonaws.com/serviceaccount/token"
+	}
+
+	volumeName := "aws-iam-token"
+
+	// Check if volume already exists to avoid duplicates
+	for _, v := range spec.Volumes {
+		if v.Name == volumeName {
+			return
+		}
+	}
+
+	expiration := int64(86400)
+	spec.Volumes = append(spec.Volumes, corev1.Volume{
+		Name: volumeName,
+		VolumeSource: corev1.VolumeSource{
+			Projected: &corev1.ProjectedVolumeSource{
+				Sources: []corev1.VolumeProjection{
+					{
+						ServiceAccountToken: &corev1.ServiceAccountTokenProjection{
+							Audience:          "sts.amazonaws.com",
+							ExpirationSeconds: &expiration,
+							Path:              "token",
+						},
+					},
+				},
+			},
+		},
+	})
+
+	// Add volume mount to the first container
+	spec.Containers[0].VolumeMounts = append(spec.Containers[0].VolumeMounts, corev1.VolumeMount{
+		Name:      volumeName,
+		ReadOnly:  true,
+		MountPath: tokenPath,
+		SubPath:   "token",
+	})
 }
 
 // WaitForPodReady waits until the Pod is in Running state.
