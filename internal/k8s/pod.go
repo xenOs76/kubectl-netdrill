@@ -96,6 +96,20 @@ func ensureEKSToken(spec *corev1.PodSpec) {
 		return
 	}
 
+	tokenPath, hasRole := getEKSTokenConfig(spec)
+
+	if tokenPath == "" && !hasRole {
+		return
+	}
+
+	if tokenPath == "" {
+		tokenPath = "/var/run/secrets/eks.amazonaws.com/serviceaccount/token"
+	}
+
+	addEKSTokenVolume(spec, tokenPath)
+}
+
+func getEKSTokenConfig(spec *corev1.PodSpec) (string, bool) {
 	var tokenPath string
 
 	var hasRole bool
@@ -110,49 +124,53 @@ func ensureEKSToken(spec *corev1.PodSpec) {
 		}
 	}
 
-	if tokenPath == "" && !hasRole {
-		return
-	}
+	return tokenPath, hasRole
+}
 
-	if tokenPath == "" {
-		tokenPath = "/var/run/secrets/eks.amazonaws.com/serviceaccount/token"
-	}
-
+func addEKSTokenVolume(spec *corev1.PodSpec, tokenPath string) {
 	volumeName := "aws-iam-token"
+	volumeExists := false
 
-	// Check if volume already exists to avoid duplicates
 	for _, v := range spec.Volumes {
 		if v.Name == volumeName {
-			return
+			volumeExists = true
+
+			break
 		}
 	}
 
-	expiration := int64(86400)
-	tokenFile := path.Base(tokenPath)
-	tokenDir := path.Dir(tokenPath)
+	if !volumeExists {
+		expiration := int64(86400)
+		tokenFile := path.Base(tokenPath)
 
-	spec.Volumes = append(spec.Volumes, corev1.Volume{
-		Name: volumeName,
-		VolumeSource: corev1.VolumeSource{
-			Projected: &corev1.ProjectedVolumeSource{
-				Sources: []corev1.VolumeProjection{
-					{
-						ServiceAccountToken: &corev1.ServiceAccountTokenProjection{
-							Audience:          "sts.amazonaws.com",
-							ExpirationSeconds: &expiration,
-							Path:              tokenFile,
+		spec.Volumes = append(spec.Volumes, corev1.Volume{
+			Name: volumeName,
+			VolumeSource: corev1.VolumeSource{
+				Projected: &corev1.ProjectedVolumeSource{
+					Sources: []corev1.VolumeProjection{
+						{
+							ServiceAccountToken: &corev1.ServiceAccountTokenProjection{
+								Audience:          "sts.amazonaws.com",
+								ExpirationSeconds: &expiration,
+								Path:              tokenFile,
+							},
 						},
 					},
 				},
 			},
-		},
-	})
+		})
+	}
 
-	// Add volume mount to the first container
+	for _, vm := range spec.Containers[0].VolumeMounts {
+		if vm.Name == volumeName {
+			return
+		}
+	}
+
 	spec.Containers[0].VolumeMounts = append(spec.Containers[0].VolumeMounts, corev1.VolumeMount{
 		Name:      volumeName,
 		ReadOnly:  true,
-		MountPath: tokenDir,
+		MountPath: path.Dir(tokenPath),
 	})
 }
 
