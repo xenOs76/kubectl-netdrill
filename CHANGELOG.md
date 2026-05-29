@@ -1,3 +1,9 @@
+## 0.1.8 (2026-05-29)
+
+### Fix
+
+    Trigger new release for fix version number detection at build time
+
 ## 0.1.7 (2026-05-12)
 
     New Features
