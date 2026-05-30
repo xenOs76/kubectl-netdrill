@@ -1,3 +1,9 @@
+## 0.1.9 (2026-05-30)
+
+### Chore
+
+    Update Go dependencies
+
 ## 0.1.8 (2026-05-29)
 
 ### Fix
