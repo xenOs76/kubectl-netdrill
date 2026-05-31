@@ -104,12 +104,17 @@ func checkEphemeralContainer(pod *corev1.Pod, name string) (bool, error) {
 func AttachToEphemeralContainer(ctx context.Context, client kubernetes.Interface, config *rest.Config,
 	namespace, podName, containerName string, tsq remotecommand.TerminalSizeQueue,
 ) error {
-	u, err := AttachURLGetter(client, namespace, podName, containerName)
+	hookMu.Lock()
+	attachURLGetter := AttachURLGetter
+	spdyCreator := SPDYExecutorCreator
+	hookMu.Unlock()
+
+	u, err := attachURLGetter(client, namespace, podName, containerName)
 	if err != nil {
 		return err
 	}
 
-	executor, err := SPDYExecutorCreator(config, "POST", u)
+	executor, err := spdyCreator(config, "POST", u)
 	if err != nil {
 		return err
 	}

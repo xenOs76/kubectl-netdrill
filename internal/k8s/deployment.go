@@ -4,8 +4,10 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/xenos76/kubectl-netdrill/internal/netdrill"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -44,14 +46,24 @@ func CreateDeployment(
 		"app": appLabel,
 	}
 
-	// Merge with user-provided labels
-	labels := make(map[string]string)
+	// Merge netdrill base labels, user labels, and selector labels.
+	labels := netdrill.PodLabels(opts.Owner, opts.Ticket)
 	for k, v := range opts.Labels {
 		labels[k] = v
 	}
 
 	for k, v := range selectorLabels {
 		labels[k] = v
+	}
+
+	protected := netdrill.PodLabels(opts.Owner, opts.Ticket)
+	labels[netdrill.LabelManaged] = protected[netdrill.LabelManaged]
+	if v, ok := protected[netdrill.LabelOwner]; ok {
+		labels[netdrill.LabelOwner] = v
+	}
+
+	if v, ok := protected[netdrill.LabelTicket]; ok {
+		labels[netdrill.LabelTicket] = v
 	}
 
 	resources, err := buildResources(opts)
@@ -77,7 +89,7 @@ func CreateDeployment(
 				Spec: corev1.PodSpec{
 					Containers: []corev1.Container{
 						{
-							Name:            "netdrill",
+							Name:            netdrill.ContainerNetdrill,
 							Image:           opts.Image,
 							ImagePullPolicy: corev1.PullIfNotPresent,
 							Stdin:           true,
@@ -154,4 +166,14 @@ func parseResource(
 	list[resName] = q
 
 	return list, nil
+}
+
+// DeleteDeployment deletes the specified Deployment.
+func DeleteDeployment(ctx context.Context, client kubernetes.Interface, namespace, name string) error {
+	err := client.AppsV1().Deployments(namespace).Delete(ctx, name, metav1.DeleteOptions{})
+	if err != nil && errors.IsNotFound(err) {
+		return nil
+	}
+
+	return err
 }

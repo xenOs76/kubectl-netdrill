@@ -9,6 +9,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/xenos76/kubectl-netdrill/internal/netdrill"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -32,9 +33,7 @@ func TestCreatePodDefault(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-pod",
 			Namespace: "default",
-			Labels: map[string]string{
-				"app": "kubectl-netdrill",
-			},
+			Labels:    netdrill.PodLabels("", ""),
 		},
 		Spec: corev1.PodSpec{
 			Containers: []corev1.Container{
@@ -77,9 +76,7 @@ func TestCreatePodWithHostNetwork(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-pod-network",
 			Namespace: "default",
-			Labels: map[string]string{
-				"app": "kubectl-netdrill",
-			},
+			Labels:    netdrill.PodLabels("", ""),
 		},
 		Spec: corev1.PodSpec{
 			Containers: []corev1.Container{
@@ -123,9 +120,7 @@ func TestCreatePodWithCommandAndArgs(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-pod-cmd",
 			Namespace: "default",
-			Labels: map[string]string{
-				"app": "kubectl-netdrill",
-			},
+			Labels:    netdrill.PodLabels("", ""),
 		},
 		Spec: corev1.PodSpec{
 			Containers: []corev1.Container{
@@ -171,9 +166,7 @@ func TestCreatePodWithNodeSelector(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-pod-selector",
 			Namespace: "default",
-			Labels: map[string]string{
-				"app": "kubectl-netdrill",
-			},
+			Labels:    netdrill.PodLabels("", ""),
 		},
 		Spec: corev1.PodSpec{
 			Containers: []corev1.Container{
@@ -218,9 +211,7 @@ func TestCreatePodWithServiceAccount(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-pod-sa",
 			Namespace: "default",
-			Labels: map[string]string{
-				"app": "kubectl-netdrill",
-			},
+			Labels:    netdrill.PodLabels("", ""),
 		},
 		Spec: corev1.PodSpec{
 			Containers: []corev1.Container{
@@ -266,9 +257,7 @@ func TestCreatePodWithPorts(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-pod-ports",
 			Namespace: "default",
-			Labels: map[string]string{
-				"app": "kubectl-netdrill",
-			},
+			Labels:    netdrill.PodLabels("", ""),
 		},
 		Spec: corev1.PodSpec{
 			Containers: []corev1.Container{
@@ -317,9 +306,7 @@ func TestCreatePodWithEnvVars(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-pod-env",
 			Namespace: "default",
-			Labels: map[string]string{
-				"app": "kubectl-netdrill",
-			},
+			Labels:    netdrill.PodLabels("", ""),
 		},
 		Spec: corev1.PodSpec{
 			Containers: []corev1.Container{

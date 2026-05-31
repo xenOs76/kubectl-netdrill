@@ -158,12 +158,72 @@ kubectl-netdrill version 0.1.2
 
 ### Quick Reference
 
-| Command                        | Description                                                   |
-| ------------------------------ | ------------------------------------------------------------- |
-| `kubectl netdrill run [name]`  | Create a temporary troubleshooting pod (auto-deleted on exit) |
-| `kubectl netdrill pod [name]`  | Create a persistent troubleshooting pod                       |
-| `kubectl netdrill deployment [name]` | Create a persistent troubleshooting deployment          |
-| `kubectl netdrill debug <pod>` | Inject ephemeral container into a running pod                 |
+| Command                              | Description                                                   |
+| ------------------------------------ | ------------------------------------------------------------- |
+| `kubectl netdrill run [name]`        | Create a temporary troubleshooting pod (auto-deleted on exit) |
+| `kubectl netdrill pod [name]`        | Create a persistent troubleshooting pod                       |
+| `kubectl netdrill deployment [name]` | Create a persistent troubleshooting deployment                |
+| `kubectl netdrill debug <pod>`       | Inject ephemeral container into a running pod                 |
+| `kubectl netdrill mcp`               | Run MCP server (stdio) for AI agent integration               |
+
+### kubectl netdrill mcp
+
+Start a [Model Context Protocol](https://modelcontextprotocol.io/) server on
+stdin/stdout so AI clients (Cursor, Claude Desktop, etc.) can create netdrill
+pods, run commands inside them, and clean up—without interactive TTY attach.
+
+```bash
+kubectl netdrill mcp --owner "$USER" -n my-namespace
+```
+
+#### Cursor configuration example
+
+```json
+{
+  "mcpServers": {
+    "kubectl-netdrill": {
+      "command": "kubectl-netdrill",
+      "args": ["mcp", "--owner", "xeno", "-n", "troubleshooting"]
+    }
+  }
+}
+```
+
+#### MCP flags
+
+| Flag                       | Description                                                                      | Default   |
+| -------------------------- | -------------------------------------------------------------------------------- | --------- |
+| `--owner`                  | Owner label stamped on created resources; required for delete/exec authorization. Optional; defaults to `$USER` when unset. Required when `USER` is empty. | `$USER` when unset and `USER` is set |
+| `--exec-timeout`           | Timeout for exec tools                                                           | `120s`    |
+| `--max-output-bytes`       | Max stdout+stderr captured per exec                                              | `1048576` |
+| `--insecure-allow-any-pod` | Skip managed/owner label checks (dangerous)                                      | `false`   |
+
+#### Guardrails
+
+- Pods created via MCP are labeled `kubectl-netdrill.io/managed=true` and
+  `kubectl-netdrill.io/owner=<owner>`.
+- Optional `ticket_id` on create tools adds `kubectl-netdrill.io/ticket`;
+  delete/exec require a matching ticket when present.
+- Delete and exec are authorized by **labels on the live pod**, not by pod name
+  alone—so another user's netdrill pod in the same namespace is not deletable
+  from your session.
+- Use `netdrill_list_managed_pods` to list pods for your owner before delete.
+
+#### MCP tools (v1)
+
+| Tool                         | Purpose                                  |
+| ---------------------------- | ---------------------------------------- |
+| `netdrill_pod_create`        | Persistent troubleshooting pod           |
+| `netdrill_pod_delete`        | Delete an authorized pod                 |
+| `netdrill_pod_wait`          | Wait until pod is Running                |
+| `netdrill_pod_exec`          | Run a command and return stdout/stderr   |
+| `netdrill_run_create`        | Ephemeral pod                            |
+| `netdrill_run_cleanup`       | Delete ephemeral pod                     |
+| `netdrill_deployment_create` | Create Deployment                        |
+| `netdrill_deployment_delete` | Delete Deployment                        |
+| `netdrill_debug_add`         | Add `netdrill-debug` ephemeral container |
+| `netdrill_debug_exec`        | Exec in ephemeral container              |
+| `netdrill_list_managed_pods` | List managed pods for this owner         |
 
 ### kubectl netdrill run
 
@@ -353,10 +413,10 @@ kubectl netdrill debug <pod-name> --target <container-name>
 
 #### Options
 
-| Flag              | Short | Description                                                    | Default                           |
-| ----------------- | ----- | -------------------------------------------------------------- | --------------------------------- |
-| `--target`        |       | Container name to share PID namespace with                     |                                   |
-| `--image`         | `-i`  | Container image to use                                         | `ghcr.io/xenos76/netdrill:latest` |
+| Flag       | Short | Description                                | Default                           |
+| ---------- | ----- | ------------------------------------------ | --------------------------------- |
+| `--target` |       | Container name to share PID namespace with |                                   |
+| `--image`  | `-i`  | Container image to use                     | `ghcr.io/xenos76/netdrill:latest` |
 
 #### Examples
 

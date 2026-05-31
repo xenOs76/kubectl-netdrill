@@ -8,6 +8,7 @@ import (
 	"path"
 	"time"
 
+	"github.com/xenos76/kubectl-netdrill/internal/netdrill"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -51,6 +52,8 @@ type PodOptions struct {
 	ServiceAccount string
 	Ports          []corev1.ContainerPort
 	EnvVars        []corev1.EnvVar
+	Owner          string
+	Ticket         string
 }
 
 // CreatePod creates a new Pod with the specified options.
@@ -59,14 +62,12 @@ func CreatePod(ctx context.Context, client kubernetes.Interface, opts PodOptions
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      opts.PodName,
 			Namespace: opts.Namespace,
-			Labels: map[string]string{
-				"app": "kubectl-netdrill",
-			},
+			Labels:    netdrill.PodLabels(opts.Owner, opts.Ticket),
 		},
 		Spec: corev1.PodSpec{
 			Containers: []corev1.Container{
 				{
-					Name:            "netdrill",
+					Name:            netdrill.ContainerNetdrill,
 					Image:           opts.Image,
 					ImagePullPolicy: corev1.PullIfNotPresent,
 					Stdin:           true,
@@ -209,12 +210,17 @@ var WaitForPodReady = func(ctx context.Context, client kubernetes.Interface, nam
 func AttachToPod(ctx context.Context, client kubernetes.Interface, config *rest.Config,
 	namespace, podName, containerName string, tsq remotecommand.TerminalSizeQueue,
 ) error {
-	u, err := AttachURLGetter(client, namespace, podName, containerName)
+	hookMu.Lock()
+	attachURLGetter := AttachURLGetter
+	spdyCreator := SPDYExecutorCreator
+	hookMu.Unlock()
+
+	u, err := attachURLGetter(client, namespace, podName, containerName)
 	if err != nil {
 		return err
 	}
 
-	executor, err := SPDYExecutorCreator(config, "POST", u)
+	executor, err := spdyCreator(config, "POST", u)
 	if err != nil {
 		return err
 	}

@@ -6,7 +6,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/xenos76/kubectl-netdrill/internal/k8s"
-	corev1 "k8s.io/api/core/v1"
+	"github.com/xenos76/kubectl-netdrill/internal/netdrill"
 )
 
 var podCmd = &cobra.Command{
@@ -32,28 +32,16 @@ var podCmd = &cobra.Command{
 			return fmt.Errorf("getting namespace: %w", err)
 		}
 
-		var containerPorts []corev1.ContainerPort
-		for _, p := range Ports {
-			containerPorts = append(containerPorts, corev1.ContainerPort{ContainerPort: p})
-		}
-
-		var envVars []corev1.EnvVar
-		for k, v := range EnvVars {
-			envVars = append(envVars, corev1.EnvVar{Name: k, Value: v})
-		}
-
-		opts := k8s.PodOptions{
+		opts := k8s.PodOptionsFromConfig(netdrill.PodConfig{
 			Namespace:      namespace,
 			PodName:        podName,
 			Image:          Image,
 			HostNetwork:    HostNetwork,
 			NodeSelector:   NodeSelector,
-			Command:        []string{"/bin/bash", "-c", "--"},
-			Args:           []string{"while true; do sleep 30; done;"},
 			ServiceAccount: ServiceAccount,
-			Ports:          containerPorts,
-			EnvVars:        envVars,
-		}
+			Ports:          Ports,
+			EnvVars:        EnvVars,
+		})
 
 		fmt.Printf("Creating pod %s in namespace %s...\n", podName, namespace)
 
