@@ -1,3 +1,21 @@
+## 0.2.0 (2026-05-31)
+
+### New Features
+
+    Added MCP (Model Context Protocol) server support with kubectl netdrill mcp command for AI/LLM integration.
+    Added pod command execution capability with stdout/stderr capture and exit code reporting.
+    Added deployment management operations.
+    Added bash completion support for new MCP command.
+
+### Documentation
+
+    Expanded README with comprehensive MCP usage guide, configuration examples, and security guardrails.
+
+### Chores
+
+    Updated dependencies to include MCP SDK support.
+    Updated .gitignore to exclude vendor directory.
+
 ## 0.1.9 (2026-05-30)
 
 ### Chore
