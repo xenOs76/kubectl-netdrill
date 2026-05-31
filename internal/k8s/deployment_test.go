@@ -6,6 +6,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/xenos76/kubectl-netdrill/internal/netdrill"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
@@ -66,6 +67,30 @@ func TestCreateDeployment_LabelOverride(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "netdrill", deploy.Labels["app"], "selector label 'app' should NOT be overridable by user labels")
 	assert.Equal(t, "bar", deploy.Labels["foo"], "other user labels should still be applied")
+}
+
+func TestCreateDeployment_ProtectedLabelsNotOverridable(t *testing.T) {
+	client := fake.NewSimpleClientset()
+	opts := DeploymentOptions{
+		PodOptions: PodOptions{
+			Namespace: "default",
+			PodName:   "netdrill",
+			Image:     "netdrill",
+			Owner:     "alice",
+			Ticket:    "INC-1",
+		},
+		Labels: map[string]string{
+			netdrill.LabelManaged: "false",
+			netdrill.LabelOwner:   "bob",
+			netdrill.LabelTicket:  "WRONG",
+		},
+	}
+
+	deploy, err := CreateDeployment(context.Background(), client, opts)
+	require.NoError(t, err)
+	assert.Equal(t, netdrill.LabelManagedValue, deploy.Labels[netdrill.LabelManaged])
+	assert.Equal(t, "alice", deploy.Labels[netdrill.LabelOwner])
+	assert.Equal(t, "INC-1", deploy.Labels[netdrill.LabelTicket])
 }
 
 func TestCreateDeployment_InvalidResources(t *testing.T) {

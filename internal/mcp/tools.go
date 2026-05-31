@@ -279,7 +279,7 @@ func handlePodDelete(ctx context.Context, deps *Deps, in podNameInput) (*mcp.Cal
 	podName := in.PodName
 
 	if podName == "" {
-		return nil, nil, errors.New("pod_name is required")
+		return nil, nil, errors.New("podName is required")
 	}
 
 	if _, err := deps.getAuthorizedPod(ctx, ns, podName, in.TicketID); err != nil {
@@ -298,7 +298,7 @@ func handlePodWait(ctx context.Context, deps *Deps, in podNameInput) (*mcp.CallT
 	podName := in.PodName
 
 	if podName == "" {
-		return nil, nil, errors.New("pod_name is required")
+		return nil, nil, errors.New("podName is required")
 	}
 
 	if _, err := deps.getAuthorizedPod(ctx, ns, podName, in.TicketID); err != nil {
@@ -317,7 +317,7 @@ func handlePodExec(ctx context.Context, deps *Deps, in podExecInput) (*mcp.CallT
 	podName := in.PodName
 
 	if podName == "" {
-		return nil, podExecOutput{}, errors.New("pod_name is required")
+		return nil, podExecOutput{}, errors.New("podName is required")
 	}
 
 	if len(in.Command) == 0 {
@@ -370,6 +370,7 @@ func handleDeploymentCreate(
 ) (*mcp.CallToolResult, podCreateOutput, error) {
 	ns := resolveNamespace(deps, in.Namespace)
 	name := defaultPodName(in.Name)
+	replicas := int32(1)
 
 	cfg := netdrill.DeploymentConfig{
 		PodConfig: netdrill.PodConfig{
@@ -380,7 +381,7 @@ func handleDeploymentCreate(
 			Ticket:    in.TicketID,
 		},
 		AppLabel: name,
-		Replicas: new(int32(1)),
+		Replicas: &replicas,
 	}
 
 	opts := k8s.DeploymentOptionsFromConfig(cfg)
@@ -429,7 +430,11 @@ func handleDebugAdd(ctx context.Context, deps *Deps, in debugAddInput) (*mcp.Cal
 	podName := in.PodName
 
 	if podName == "" {
-		return nil, nil, errors.New("pod_name is required")
+		return nil, nil, errors.New("podName is required")
+	}
+
+	if _, err := deps.getAuthorizedPod(ctx, ns, podName, in.TicketID); err != nil {
+		return nil, nil, err
 	}
 
 	opts := k8s.EphemeralOptions{

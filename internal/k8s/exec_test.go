@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/url"
 	"testing"
+	"unicode/utf8"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -128,4 +129,9 @@ func TestTruncateBytes(t *testing.T) {
 	assert.Equal(t, "hello", truncateBytes("hello", -1))
 	assert.Equal(t, "hello", truncateBytes("hello", 5))
 	assert.Equal(t, "hel", truncateBytes("hello", 3))
+
+	s := "日本語"
+	out := truncateBytes(s, 4)
+	assert.True(t, utf8.ValidString(out))
+	assert.Equal(t, "日", out)
 }

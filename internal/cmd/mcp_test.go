@@ -43,6 +43,7 @@ func TestMcpCmd_MissingOwner(t *testing.T) {
 		mcpOwner = origOwner
 		rootCmd.SilenceErrors = origSilenceErrors
 		rootCmd.SilenceUsage = origSilenceUsage
+		rootCmd.SetArgs(nil)
 	}()
 
 	k8s.ClientProvider = func(_ *genericclioptions.ConfigFlags) (kubernetes.Interface, *rest.Config, error) {

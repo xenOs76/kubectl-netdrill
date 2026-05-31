@@ -108,7 +108,7 @@ func TestHandlePodDelete_EmptyName(t *testing.T) {
 	ctx := t.Context()
 	_, _, err := handlePodDelete(ctx, testDeps(fake.NewSimpleClientset()), podNameInput{})
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "pod_name")
+	assert.Contains(t, err.Error(), "podName")
 }
 
 func TestHandlePodDelete_OwnerMismatch(t *testing.T) {
@@ -273,6 +273,24 @@ func TestHandleDebugAdd_EmptyPodName(t *testing.T) {
 	ctx := t.Context()
 	_, _, err := handleDebugAdd(ctx, testDeps(fake.NewSimpleClientset()), debugAddInput{})
 	require.Error(t, err)
+}
+
+func TestHandleDebugAdd_Forbidden(t *testing.T) {
+	t.Parallel()
+
+	ctx := t.Context()
+	pod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "unmanaged",
+			Namespace: "default",
+			Labels:    map[string]string{"app": "other"},
+		},
+	}
+	deps := testDeps(fake.NewSimpleClientset(pod))
+
+	_, _, err := handleDebugAdd(ctx, deps, debugAddInput{podNameInput: podNameInput{PodName: "unmanaged"}})
+	require.Error(t, err)
+	require.ErrorIs(t, err, ErrForbidden)
 }
 
 func TestGetAuthorizedPod_NotFound(t *testing.T) {

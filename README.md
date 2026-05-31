@@ -193,7 +193,7 @@ kubectl netdrill mcp --owner "$USER" -n my-namespace
 
 | Flag                       | Description                                                                      | Default   |
 | -------------------------- | -------------------------------------------------------------------------------- | --------- |
-| `--owner`                  | Owner label stamped on created resources; required for delete/exec authorization | `$USER`   |
+| `--owner`                  | Owner label stamped on created resources; required for delete/exec authorization. Optional; defaults to `$USER` when unset. Required when `USER` is empty. | `$USER` when unset and `USER` is set |
 | `--exec-timeout`           | Timeout for exec tools                                                           | `120s`    |
 | `--max-output-bytes`       | Max stdout+stderr captured per exec                                              | `1048576` |
 | `--insecure-allow-any-pod` | Skip managed/owner label checks (dangerous)                                      | `false`   |

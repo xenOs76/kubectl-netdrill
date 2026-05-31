@@ -56,6 +56,16 @@ func CreateDeployment(
 		labels[k] = v
 	}
 
+	protected := netdrill.PodLabels(opts.Owner, opts.Ticket)
+	labels[netdrill.LabelManaged] = protected[netdrill.LabelManaged]
+	if v, ok := protected[netdrill.LabelOwner]; ok {
+		labels[netdrill.LabelOwner] = v
+	}
+
+	if v, ok := protected[netdrill.LabelTicket]; ok {
+		labels[netdrill.LabelTicket] = v
+	}
+
 	resources, err := buildResources(opts)
 	if err != nil {
 		return nil, err

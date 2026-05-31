@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"net/url"
+	"unicode/utf8"
 
 	"github.com/xenos76/kubectl-netdrill/internal/netdrill"
 	corev1 "k8s.io/api/core/v1"
@@ -103,5 +104,16 @@ func truncateBytes(s string, byteLimit int64) string {
 		return s
 	}
 
-	return s[:byteLimit]
+	truncated := s[:byteLimit]
+	if utf8.ValidString(truncated) {
+		return truncated
+	}
+
+	for i := int(byteLimit); i > 0; i-- {
+		if utf8.RuneStart(s[i]) {
+			return s[:i]
+		}
+	}
+
+	return ""
 }
