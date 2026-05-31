@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 )
 
@@ -112,4 +113,38 @@ func TestCreateDeploymentWithEKSToken(t *testing.T) {
 	wantPath := "/var/run/secrets/eks.amazonaws.com/serviceaccount"
 	assert.Equal(t, wantPath, deploy.Spec.Template.Spec.Containers[0].VolumeMounts[0].MountPath)
 	assert.Empty(t, deploy.Spec.Template.Spec.Containers[0].VolumeMounts[0].SubPath)
+}
+
+func TestDeleteDeployment(t *testing.T) {
+	t.Parallel()
+
+	ctx := t.Context()
+	client := fake.NewSimpleClientset()
+
+	opts := DeploymentOptions{
+		PodOptions: PodOptions{
+			Namespace: "default",
+			PodName:   "to-delete",
+			Image:     "netdrill",
+		},
+	}
+
+	_, err := CreateDeployment(ctx, client, opts)
+	require.NoError(t, err)
+
+	err = DeleteDeployment(ctx, client, "default", "to-delete")
+	require.NoError(t, err)
+
+	_, err = client.AppsV1().Deployments("default").Get(ctx, "to-delete", metav1.GetOptions{})
+	require.Error(t, err)
+}
+
+func TestDeleteDeployment_NotFound(t *testing.T) {
+	t.Parallel()
+
+	ctx := t.Context()
+	client := fake.NewSimpleClientset()
+
+	err := DeleteDeployment(ctx, client, "default", "missing")
+	require.NoError(t, err)
 }
