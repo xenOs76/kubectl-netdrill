@@ -129,6 +129,22 @@ func TestResolveIfLatest_mockRegistry(t *testing.T) {
 	assert.Equal(t, DefaultRepo+":v0.2.0", resolved)
 }
 
+func TestResolveIfLatest_skipsNonGHCR(t *testing.T) {
+	t.Parallel()
+
+	srv := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
+		t.Fatalf("unexpected registry request: %s", r.URL.Path)
+	}))
+	t.Cleanup(srv.Close)
+
+	client := &RegistryClient{BaseURL: srv.URL, HTTPClient: srv.Client()}
+
+	img := "docker.io/library/nginx:latest"
+	resolved, err := ResolveIfLatest(context.Background(), img, client)
+	require.NoError(t, err)
+	assert.Equal(t, img, resolved)
+}
+
 func TestRepoToRegistryPath(t *testing.T) {
 	t.Parallel()
 

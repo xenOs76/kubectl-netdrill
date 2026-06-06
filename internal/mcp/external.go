@@ -25,6 +25,7 @@ func registerContainerTools(server *mcp.Server, _ *Deps) error {
 	return nil
 }
 
+// registerContainerToolResources exposes the embedded tool catalog as an MCP resource.
 func registerContainerToolResources(server *mcp.Server) {
 	server.AddResource(&mcp.Resource{
 		URI:         containerToolsResourceURI,
@@ -42,6 +43,7 @@ func registerContainerToolResources(server *mcp.Server) {
 	})
 }
 
+// registerContainerToolPrompts adds MCP prompts that guide agents to run image CLIs via pod exec.
 func registerContainerToolPrompts(server *mcp.Server) {
 	server.AddPrompt(&mcp.Prompt{
 		Name:        "netdrill_prompt_aws_in_pod",
@@ -109,6 +111,7 @@ func registerContainerToolPrompts(server *mcp.Server) {
 	})
 }
 
+// promptArg returns a named prompt argument from req, or "" when missing.
 func promptArg(req *mcp.GetPromptRequest, name string) string {
 	if req == nil || req.Params == nil || req.Params.Arguments == nil {
 		return ""

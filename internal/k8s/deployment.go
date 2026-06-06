@@ -25,6 +25,7 @@ type DeploymentOptions struct {
 	MemoryLimit   string
 }
 
+// deploymentLabels builds pod/deployment labels and selector labels from opts.
 func deploymentLabels(opts DeploymentOptions) (labels, selectorLabels map[string]string) {
 	appLabel := opts.PodName
 	if opts.AppLabel != "" {

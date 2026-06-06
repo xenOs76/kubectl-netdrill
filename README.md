@@ -208,7 +208,7 @@ Pass an explicit tag with `-i` to skip resolution, or `--resolve-image=false` fo
 | `--exec-timeout`           | Timeout for exec tools                                                           | `120s`    |
 | `--max-output-bytes`       | Max stdout+stderr captured per exec                                              | `1048576` |
 | `--insecure-allow-any-pod` | Skip managed/owner label checks (dangerous)                                      | `false`   |
-| `--resolve-image`        | Resolve `:latest` to the highest semver tag on GHCR (warn and keep `:latest` on error) | `true`    |
+| `--resolve-image`        | Resolve `:latest` to the highest semver tag on GHCR (falls back to configured image on error) | `true`    |
 
 #### Guardrails
 

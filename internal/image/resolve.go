@@ -24,7 +24,9 @@ const (
 
 // RegistryClient fetches tags from an OCI distribution registry (GHCR-compatible).
 type RegistryClient struct {
-	BaseURL    string
+	// BaseURL is the registry API root (for example https://ghcr.io).
+	BaseURL string
+	// HTTPClient performs registry HTTP requests; defaults to http.DefaultClient when nil.
 	HTTPClient *http.Client
 }
 
@@ -103,6 +105,7 @@ func PickLatestSemver(tags []string) (string, error) {
 	return bestRaw, nil
 }
 
+// parseSemverTag parses raw into a semver version, accepting an optional "v" prefix.
 func parseSemverTag(raw string) (semver.Version, bool) {
 	s := strings.TrimPrefix(raw, "v")
 
@@ -138,6 +141,7 @@ func (c *RegistryClient) ResolveLatestSemverTag(ctx context.Context, repo string
 	return PickLatestSemver(tags)
 }
 
+// repoToRegistryPath converts a full image repository reference to the path used in registry API URLs.
 func repoToRegistryPath(repo string) (string, error) {
 	repo = strings.TrimPrefix(repo, "https://")
 	repo = strings.TrimPrefix(repo, "http://")
@@ -160,6 +164,15 @@ func repoToRegistryPath(repo string) (string, error) {
 	return "", fmt.Errorf("unsupported repository %q", repo)
 }
 
+// isGHCRRepo reports whether repo refers to a GitHub Container Registry image.
+func isGHCRRepo(repo string) bool {
+	r := strings.TrimPrefix(repo, "https://")
+	r = strings.TrimPrefix(r, "http://")
+
+	return strings.HasPrefix(r, "ghcr.io/")
+}
+
+// fetchToken obtains a bearer token for read access to repoPath.
 func (c *RegistryClient) fetchToken(ctx context.Context, repoPath string) (string, error) {
 	base := strings.TrimSuffix(c.BaseURL, "/")
 	scope := url.QueryEscape("repository:" + repoPath + ":pull")
@@ -194,6 +207,7 @@ func (c *RegistryClient) fetchToken(ctx context.Context, repoPath string) (strin
 	return body.Token, nil
 }
 
+// fetchTags lists tag names for repoPath using the given bearer token.
 func (c *RegistryClient) fetchTags(ctx context.Context, repoPath, token string) ([]string, error) {
 	base := strings.TrimSuffix(c.BaseURL, "/")
 	tagsURL := base + "/v2/" + repoPath + "/tags/list"
@@ -226,6 +240,7 @@ func (c *RegistryClient) fetchTags(ctx context.Context, repoPath, token string) 
 	return body.Tags, nil
 }
 
+// http returns the HTTP client to use for registry requests.
 func (c *RegistryClient) http() *http.Client {
 	if c.HTTPClient != nil {
 		return c.HTTPClient
@@ -234,6 +249,7 @@ func (c *RegistryClient) http() *http.Client {
 	return http.DefaultClient
 }
 
+// statusError builds an error from a non-success registry HTTP response.
 func statusError(resp *http.Response) error {
 	const maxBody = 512
 
@@ -242,20 +258,25 @@ func statusError(resp *http.Response) error {
 	return fmt.Errorf("registry HTTP %d: %s", resp.StatusCode, strings.TrimSpace(string(b)))
 }
 
-// ResolveIfLatest replaces :latest (or untagged) references with repo:<max-semver-tag>.
-// When resolution is not needed or fails, the original image is returned with the error (if any).
+// ResolveIfLatest replaces :latest (or untagged) GHCR references with repo:<max-semver-tag>.
+// Non-GHCR repositories are returned unchanged. When resolution is not needed or fails,
+// the original image is returned with the error (if any).
 func ResolveIfLatest(ctx context.Context, image string, client *RegistryClient) (string, error) {
 	if !NeedsLatestResolution(image) {
 		return image, nil
 	}
 
-	if client == nil {
-		client = DefaultRegistryClient()
-	}
-
 	repo, _ := ParseReference(image)
 	if repo == "" {
 		repo = DefaultRepo
+	}
+
+	if !isGHCRRepo(repo) {
+		return image, nil
+	}
+
+	if client == nil {
+		client = DefaultRegistryClient()
 	}
 
 	tag, err := client.ResolveLatestSemverTag(ctx, repo)
