@@ -1,3 +1,27 @@
+## 0.2.1 (2026-06-06)
+
+### Feat
+
+    Added --resolve-image flag to auto-resolve container :latest to semver-tagged releases
+    Added MCP resource netdrill://container-tools with prompts for AWS creds, HTTPS/TLS checks, and network diagnostics
+
+### Documentation
+
+    Updated README with MCP configuration, image resolution behavior, and new MCP resources
+    Added container-tools guide with bundled CLI utilities and usage examples
+
+### Tests
+
+    Added unit tests covering image resolution and MCP container-tools registration
+
+### Chores / Dependencies
+
+    Declared semver library as a direct dependency
+
+### Refactor
+
+    Minor internal label/env handling improvements
+
 ## 0.2.0 (2026-05-31)
 
 ### New Features
