@@ -3,10 +3,12 @@ package cmd
 import (
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"time"
 
 	"github.com/spf13/cobra"
+	"github.com/xenos76/kubectl-netdrill/internal/image"
 	"github.com/xenos76/kubectl-netdrill/internal/k8s"
 	mcpsrv "github.com/xenos76/kubectl-netdrill/internal/mcp"
 )
@@ -16,6 +18,7 @@ var (
 	mcpExecTimeout         time.Duration
 	mcpMaxOutputBytes      int64
 	mcpInsecureAllowAnyPod bool
+	mcpResolveImage        bool
 )
 
 var mcpCmd = &cobra.Command{
@@ -45,11 +48,23 @@ to AI clients. Use --owner to bind create/delete/exec to pods you own.`,
 			return errors.New("--owner is required when USER is unset")
 		}
 
+		podImage := Image
+		if mcpResolveImage {
+			resolved, err := image.ResolveIfLatest(ctx, Image, nil)
+			if err != nil {
+				slog.Warn("netdrill image resolution failed; using configured image",
+					"image", Image, "err", err)
+			} else if resolved != Image {
+				slog.Info("resolved netdrill image", "from", Image, "to", resolved)
+				podImage = resolved
+			}
+		}
+
 		deps := &mcpsrv.Deps{
 			Client: client,
 			Config: restConfig,
 			Cfg: mcpsrv.Config{
-				Image:               Image,
+				Image:               podImage,
 				DefaultNamespace:    namespace,
 				Owner:               owner,
 				ExecTimeout:         mcpExecTimeout,
@@ -78,4 +93,6 @@ func init() {
 		"Maximum combined stdout+stderr bytes per exec")
 	mcpCmd.Flags().BoolVar(&mcpInsecureAllowAnyPod, "insecure-allow-any-pod", false,
 		"Skip managed/owner label checks (dangerous)")
+	mcpCmd.Flags().BoolVar(&mcpResolveImage, "resolve-image", true,
+		"Resolve :latest to the highest semver tag on GHCR (falls back on error)")
 }

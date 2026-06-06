@@ -17,6 +17,10 @@ func Run(ctx context.Context, version string, deps *Deps) error {
 
 	registerTools(server, deps)
 
+	if err := registerContainerTools(server, deps); err != nil {
+		return fmt.Errorf("register container tools: %w", err)
+	}
+
 	if err := server.Run(ctx, &mcp.StdioTransport{}); err != nil {
 		return fmt.Errorf("mcp server: %w", err)
 	}

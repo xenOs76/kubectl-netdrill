@@ -1,7 +1,7 @@
 package k8s
 
 import (
-	"sort"
+	"slices"
 
 	"github.com/xenos76/kubectl-netdrill/internal/netdrill"
 	corev1 "k8s.io/api/core/v1"
@@ -15,13 +15,15 @@ func PodOptionsFromConfig(cfg netdrill.PodConfig) PodOptions {
 	}
 
 	var envVars []corev1.EnvVar
+
 	if len(cfg.EnvVars) > 0 {
 		keys := make([]string, 0, len(cfg.EnvVars))
 		for k := range cfg.EnvVars {
 			keys = append(keys, k)
 		}
 
-		sort.Strings(keys)
+		slices.Sort(keys)
+
 		for _, k := range keys {
 			envVars = append(envVars, corev1.EnvVar{Name: k, Value: cfg.EnvVars[k]})
 		}
