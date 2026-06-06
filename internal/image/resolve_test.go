@@ -29,9 +29,9 @@ func TestParseReference(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.image, func(t *testing.T) {
-			t.Parallel()
-
 			tt := tt
+
+			t.Parallel()
 
 			repo, tag := ParseReference(tt.image)
 			assert.Equal(t, tt.wantRepo, repo)

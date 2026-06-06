@@ -87,7 +87,7 @@ func registerContainerToolPrompts(server *mcp.Server) {
 		Name:        "netdrill_prompt_network_check",
 		Description: "Basic connectivity check from a netdrill pod (ping/curl/doggo)",
 		Arguments: []*mcp.PromptArgument{
-			{Name: "target", Description: "Host, IP, or URL to test", Required: true},
+			{Name: "target", Description: "Host, IP, or URL to test (default: 1.1.1.1)", Required: false},
 		},
 	}, func(_ context.Context, req *mcp.GetPromptRequest) (*mcp.GetPromptResult, error) {
 		target := promptArg(req, "target")

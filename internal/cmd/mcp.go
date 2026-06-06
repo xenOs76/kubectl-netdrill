@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -49,8 +50,12 @@ to AI clients. Use --owner to bind create/delete/exec to pods you own.`,
 		}
 
 		podImage := Image
+
 		if mcpResolveImage {
-			resolved, err := image.ResolveIfLatest(ctx, Image, nil)
+			resolveCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+			defer cancel()
+
+			resolved, err := image.ResolveIfLatest(resolveCtx, Image, nil)
 			if err != nil {
 				slog.Warn("netdrill image resolution failed; using configured image",
 					"image", Image, "err", err)

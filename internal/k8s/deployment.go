@@ -3,6 +3,7 @@ package k8s
 import (
 	"context"
 	"fmt"
+	"maps"
 
 	"github.com/xenos76/kubectl-netdrill/internal/netdrill"
 	appsv1 "k8s.io/api/apps/v1"
@@ -34,7 +35,9 @@ func deploymentLabels(opts DeploymentOptions) (labels, selectorLabels map[string
 
 	selectorLabels = map[string]string{"app": appLabel}
 
-	labels = netdrill.PodLabels(opts.Owner, opts.Ticket)
+	protected := netdrill.PodLabels(opts.Owner, opts.Ticket)
+
+	labels = maps.Clone(protected)
 	for k, v := range opts.Labels {
 		labels[k] = v
 	}
@@ -42,8 +45,6 @@ func deploymentLabels(opts DeploymentOptions) (labels, selectorLabels map[string
 	for k, v := range selectorLabels {
 		labels[k] = v
 	}
-
-	protected := netdrill.PodLabels(opts.Owner, opts.Ticket)
 
 	labels[netdrill.LabelManaged] = protected[netdrill.LabelManaged]
 	if v, ok := protected[netdrill.LabelOwner]; ok {

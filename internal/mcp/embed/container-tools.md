@@ -1,8 +1,9 @@
 # Netdrill container tools
 
 The default netdrill image (`ghcr.io/xenos76/netdrill`) ships CLIs and utilities for
-in-cluster troubleshooting. The MCP server pins `:latest` to the highest semver tag on GHCR
-at startup (for example `ghcr.io/xenos76/netdrill:v0.1.2`) so pods pull a concrete release.
+in-cluster troubleshooting. When `--resolve-image=true`, MCP startup resolves untagged/`:latest` GHCR references to the
+highest semver tag (for example `ghcr.io/xenos76/netdrill:v0.1.2`) so pods pull a concrete release.
+If resolution fails, MCP uses the configured image unchanged.
 Use **netdrill_pod_create** (with a ServiceAccount when
 AWS access is needed), **netdrill_pod_wait**, then **netdrill_pod_exec** with the command
 arrays below. Credentials come from the pod (for example EKS IRSA), not from the MCP host.
