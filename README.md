@@ -176,6 +176,17 @@ pods, run commands inside them, and clean up—without interactive TTY attach.
 kubectl netdrill mcp --owner "$USER" -n my-namespace
 ```
 
+The server always registers an MCP resource `netdrill://container-tools` (catalog of CLIs in the
+[netdrill image](https://github.com/xenos76/netdrill), including `aws-probe` and `https-wrench`) and
+prompts that guide agents to run them via **`netdrill_pod_exec`** inside pods (use a ServiceAccount
+for EKS IRSA). It does **not** register `aws_probe_*` API tools; for direct AWS MCP from your
+workstation, use a separate **`aws-probe mcp`** server.
+
+When `--image` uses the `:latest` tag (the default), MCP startup queries GHCR for the highest
+semver tag (for example `v0.1.2`) and pins that reference for all create/debug tools in the
+session. If the registry is unreachable, a warning is logged and the configured image is used.
+Pass an explicit tag with `-i` to skip resolution, or `--resolve-image=false` for air-gapped use.
+
 #### Cursor configuration example
 
 ```json
@@ -197,6 +208,7 @@ kubectl netdrill mcp --owner "$USER" -n my-namespace
 | `--exec-timeout`           | Timeout for exec tools                                                           | `120s`    |
 | `--max-output-bytes`       | Max stdout+stderr captured per exec                                              | `1048576` |
 | `--insecure-allow-any-pod` | Skip managed/owner label checks (dangerous)                                      | `false`   |
+| `--resolve-image`        | Resolve `:latest` to the highest semver tag on GHCR (falls back to configured image on error) | `true`    |
 
 #### Guardrails
 
@@ -224,6 +236,15 @@ kubectl netdrill mcp --owner "$USER" -n my-namespace
 | `netdrill_debug_add`         | Add `netdrill-debug` ephemeral container |
 | `netdrill_debug_exec`        | Exec in ephemeral container              |
 | `netdrill_list_managed_pods` | List managed pods for this owner         |
+
+#### MCP resources and prompts (container tools)
+
+| Name | Purpose |
+| ---- | ------- |
+| `netdrill://container-tools` | Markdown catalog of netdrill image CLIs and example `netdrill_pod_exec` commands |
+| `netdrill_prompt_aws_in_pod` | Workflow: pod + IRSA → exec `aws-probe` in cluster |
+| `netdrill_prompt_https_in_pod` | Workflow: pod → exec `https-wrench` |
+| `netdrill_prompt_network_check` | Workflow: pod → ping/curl/doggo to a target |
 
 ### kubectl netdrill run
 

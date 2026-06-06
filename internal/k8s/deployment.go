@@ -3,6 +3,7 @@ package k8s
 import (
 	"context"
 	"fmt"
+	"maps"
 
 	"github.com/xenos76/kubectl-netdrill/internal/netdrill"
 	appsv1 "k8s.io/api/apps/v1"
@@ -25,6 +26,38 @@ type DeploymentOptions struct {
 	MemoryLimit   string
 }
 
+// deploymentLabels builds pod/deployment labels and selector labels from opts.
+func deploymentLabels(opts DeploymentOptions) (labels, selectorLabels map[string]string) {
+	appLabel := opts.PodName
+	if opts.AppLabel != "" {
+		appLabel = opts.AppLabel
+	}
+
+	selectorLabels = map[string]string{"app": appLabel}
+
+	protected := netdrill.PodLabels(opts.Owner, opts.Ticket)
+
+	labels = maps.Clone(protected)
+	for k, v := range opts.Labels {
+		labels[k] = v
+	}
+
+	for k, v := range selectorLabels {
+		labels[k] = v
+	}
+
+	labels[netdrill.LabelManaged] = protected[netdrill.LabelManaged]
+	if v, ok := protected[netdrill.LabelOwner]; ok {
+		labels[netdrill.LabelOwner] = v
+	}
+
+	if v, ok := protected[netdrill.LabelTicket]; ok {
+		labels[netdrill.LabelTicket] = v
+	}
+
+	return labels, selectorLabels
+}
+
 // CreateDeployment creates a new Deployment with the specified options.
 func CreateDeployment(
 	ctx context.Context,
@@ -36,35 +69,7 @@ func CreateDeployment(
 		replicas = *opts.Replicas
 	}
 
-	// Base labels required for the selector
-	appLabel := opts.PodName
-	if opts.AppLabel != "" {
-		appLabel = opts.AppLabel
-	}
-
-	selectorLabels := map[string]string{
-		"app": appLabel,
-	}
-
-	// Merge netdrill base labels, user labels, and selector labels.
-	labels := netdrill.PodLabels(opts.Owner, opts.Ticket)
-	for k, v := range opts.Labels {
-		labels[k] = v
-	}
-
-	for k, v := range selectorLabels {
-		labels[k] = v
-	}
-
-	protected := netdrill.PodLabels(opts.Owner, opts.Ticket)
-	labels[netdrill.LabelManaged] = protected[netdrill.LabelManaged]
-	if v, ok := protected[netdrill.LabelOwner]; ok {
-		labels[netdrill.LabelOwner] = v
-	}
-
-	if v, ok := protected[netdrill.LabelTicket]; ok {
-		labels[netdrill.LabelTicket] = v
-	}
+	labels, selectorLabels := deploymentLabels(opts)
 
 	resources, err := buildResources(opts)
 	if err != nil {
