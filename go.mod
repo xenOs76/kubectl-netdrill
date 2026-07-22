@@ -1,6 +1,6 @@
 module github.com/xenos76/kubectl-netdrill
 
-go 1.26.0
+go 1.26.5
 
 require (
 	github.com/blang/semver/v4 v4.0.0
