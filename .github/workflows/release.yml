@@ -43,6 +43,3 @@ jobs:
           workdir: .
         env:
           GITHUB_TOKEN: ${{ secrets.GH_GORELEASER_TOKEN }}
-
-      - name: Refresh Go Report Card
-        uses: creekorful/goreportcard-action@v1.0
