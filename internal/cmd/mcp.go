@@ -19,6 +19,7 @@ var (
 	mcpExecTimeout         time.Duration
 	mcpMaxOutputBytes      int64
 	mcpInsecureAllowAnyPod bool
+	mcpMirrorExecToLogs    bool
 	mcpResolveImage        bool
 
 	// runMCP starts the MCP server; overridable in tests.
@@ -80,6 +81,7 @@ to AI clients. Use --owner to bind create/delete/exec to pods you own.`,
 				ExecTimeout:         mcpExecTimeout,
 				MaxOutputBytes:      mcpMaxOutputBytes,
 				InsecureAllowAnyPod: mcpInsecureAllowAnyPod,
+				MirrorExecToLogs:    mcpMirrorExecToLogs,
 			},
 			Guard: mcpsrv.Guard{
 				Owner:       owner,
@@ -103,6 +105,8 @@ func init() {
 		"Maximum combined stdout+stderr bytes per exec")
 	mcpCmd.Flags().BoolVar(&mcpInsecureAllowAnyPod, "insecure-allow-any-pod", false,
 		"Skip managed/owner label checks (dangerous)")
+	mcpCmd.Flags().BoolVar(&mcpMirrorExecToLogs, "mirror-exec-to-logs", false,
+		"Mirror exec argv and captured stdout/stderr into container logs (visible to anyone with pods/log)")
 	mcpCmd.Flags().BoolVar(&mcpResolveImage, "resolve-image", true,
 		"Resolve :latest to the highest semver tag on GHCR (falls back on error)")
 }

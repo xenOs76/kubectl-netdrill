@@ -51,6 +51,7 @@ func TestHandlePodExec_MirrorsToContainerLog(t *testing.T) {
 	ctx := t.Context()
 	pod := authorizedPod("exec-log", "alice", "")
 	deps := testDeps(fake.NewSimpleClientset(pod))
+	deps.Cfg.MirrorExecToLogs = true
 
 	var mu sync.Mutex
 
@@ -106,4 +107,56 @@ func TestHandlePodExec_MirrorsToContainerLog(t *testing.T) {
 	assert.Contains(t, string(decoded), `"https-wrench"`)
 	assert.Contains(t, string(decoded), "probe-ok")
 	assert.Contains(t, string(decoded), "exit: 0")
+}
+
+func TestHandlePodExec_NoMirrorByDefault(t *testing.T) {
+	ctx := t.Context()
+	pod := authorizedPod("exec-no-log", "alice", "")
+	deps := testDeps(fake.NewSimpleClientset(pod))
+
+	var mu sync.Mutex
+
+	var commands [][]string
+
+	k8s.LockTestHooks()
+
+	origURL := k8s.ExecURLGetter
+	origExec := k8s.SPDYExecutorCreator
+	k8s.ExecURLGetter = func(
+		_ kubernetes.Interface, _, _, _ string, command []string,
+	) (*url.URL, error) {
+		mu.Lock()
+
+		commands = append(commands, append([]string(nil), command...))
+		mu.Unlock()
+
+		return &url.URL{}, nil
+	}
+	k8s.SPDYExecutorCreator = func(_ *rest.Config, _ string, _ *url.URL) (remotecommand.Executor, error) {
+		return &mockMCPExecExecutor{stdout: []byte("ok\n")}, nil
+	}
+
+	k8s.UnlockTestHooks()
+
+	t.Cleanup(func() {
+		k8s.LockTestHooks()
+
+		k8s.ExecURLGetter = origURL
+		k8s.SPDYExecutorCreator = origExec
+
+		k8s.UnlockTestHooks()
+	})
+
+	_, out, err := handlePodExec(ctx, deps, podExecInput{
+		podNameInput: podNameInput{PodName: "exec-no-log"},
+		Command:      []string{"true"},
+	})
+	require.NoError(t, err)
+	assert.Equal(t, "ok\n", out.Stdout)
+
+	mu.Lock()
+	defer mu.Unlock()
+
+	require.Len(t, commands, 1)
+	assert.Equal(t, []string{"true"}, commands[0])
 }

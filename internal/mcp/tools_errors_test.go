@@ -387,6 +387,7 @@ func TestHandlePodExec_MirrorWarnStillOK(t *testing.T) {
 	ctx := t.Context()
 	pod := authorizedPod("exec-mirror-fail", "alice", "")
 	deps := testDeps(fake.NewSimpleClientset(pod))
+	deps.Cfg.MirrorExecToLogs = true
 
 	var mu sync.Mutex
 

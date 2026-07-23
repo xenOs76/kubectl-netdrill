@@ -449,6 +449,7 @@ skip resolution, or `--resolve-image=false` for air-gapped use.
 | Resolve image | `--resolve-image` | Pin `:latest` to highest GHCR semver | `true` (default); `false` air-gap |
 | Exec timeout | `--exec-timeout` | Per-exec deadline | `120s` default |
 | Max output | `--max-output-bytes` | Captured stdout+stderr cap | `1048576` default |
+| Mirror exec to logs | `--mirror-exec-to-logs` | Persist exec argv+output into `kubectl logs` | **Off** (default); enable only when needed |
 | Insecure any pod | `--insecure-allow-any-pod` | Skip owner/managed checks | **Never** in shared clusters |
 
 Inherited kubectl client flags (`--server`, `--token`, `--as`, certs, etc.) also
@@ -461,6 +462,7 @@ apply to `mcp`.
 | `--owner`                  | Owner label stamped on created resources; required for delete/exec authorization. Optional; defaults to `$USER` when unset. Required when `USER` is empty. | `$USER` when unset and `USER` is set |
 | `--exec-timeout`           | Timeout for exec tools                                                                                                                                     | `120s`                               |
 | `--max-output-bytes`       | Max stdout+stderr captured per exec                                                                                                                        | `1048576`                            |
+| `--mirror-exec-to-logs`    | Mirror exec argv and captured stdout/stderr into container logs (visible to anyone with `pods/log`)                                                        | `false`                              |
 | `--insecure-allow-any-pod` | Skip managed/owner label checks (dangerous)                                                                                                                | `false`                              |
 | `--resolve-image`          | Resolve `:latest` to the highest semver tag on GHCR (falls back to configured image on error)                                                              | `true`                               |
 
@@ -509,13 +511,13 @@ Shared optional fields on most tools: `namespace` (defaults to MCP `-n`),
 | `netdrill_pod_create` | — | `podName`, `nodeSelector`, `serviceAccount`, `env`, `ports`, `hostNetwork`, `namespace`, `ticketId` | Persistent troubleshooting pod |
 | `netdrill_pod_delete` | `podName` | `namespace`, `ticketId` | Delete an authorized pod |
 | `netdrill_pod_wait` | `podName` | `namespace`, `ticketId` | Wait until pod is Running |
-| `netdrill_pod_exec` | `podName`, `command` | `containerName`, `namespace`, `ticketId` | Run command; return stdout/stderr; also mirrors command+output into the container's `kubectl logs` (PID 1 stdout, best-effort) |
+| `netdrill_pod_exec` | `podName`, `command` | `containerName`, `namespace`, `ticketId` | Run command; return stdout/stderr. With `--mirror-exec-to-logs`, also mirrors argv+output into the container's `kubectl logs` (PID 1 stdout, best-effort) |
 | `netdrill_run_create` | — | same as pod create + `command` | Ephemeral-style pod (manual cleanup) |
 | `netdrill_run_cleanup` | `podName` | `namespace`, `ticketId` | Delete ephemeral pod |
 | `netdrill_deployment_create` | — | `name`, create fields above + `replicas`, `labels`, `cpuRequest`, `memoryRequest`, `cpuLimit`, `memoryLimit` | Create Deployment |
 | `netdrill_deployment_delete` | `name` | `namespace`, `ticketId` | Delete Deployment |
 | `netdrill_debug_add` | `podName` | `targetContainer`, `namespace`, `ticketId` | Add `netdrill-debug` ephemeral container |
-| `netdrill_debug_exec` | `podName`, `command` | `namespace`, `ticketId` | Exec in ephemeral container (same log mirroring as `netdrill_pod_exec`) |
+| `netdrill_debug_exec` | `podName`, `command` | `namespace`, `ticketId` | Exec in ephemeral container (same optional log mirroring as `netdrill_pod_exec`) |
 | `netdrill_list_managed_pods` | — | `namespace`, `ticketId` | List managed pods for this owner |
 
 ##### Examples

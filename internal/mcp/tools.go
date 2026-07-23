@@ -148,7 +148,7 @@ func registerPodTools(server *mcp.Server, deps *Deps) {
 
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "netdrill_pod_exec",
-		Description: "Run a command in a netdrill pod; returns stdout/stderr and mirrors into kubectl logs",
+		Description: "Run a command in a netdrill pod; returns stdout/stderr",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in podExecInput) (*mcp.CallToolResult, podExecOutput, error) {
 		return handlePodExec(ctx, deps, in)
 	})
@@ -181,7 +181,7 @@ func registerPodTools(server *mcp.Server, deps *Deps) {
 
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "netdrill_debug_exec",
-		Description: "Run a command in the netdrill-debug ephemeral container (mirrors into kubectl logs)",
+		Description: "Run a command in the netdrill-debug ephemeral container; returns stdout/stderr",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in podExecInput) (*mcp.CallToolResult, podExecOutput, error) {
 		in.ContainerName = netdrill.ContainerDebug
 		return handlePodExec(ctx, deps, in)
@@ -385,7 +385,9 @@ func handlePodExec(ctx context.Context, deps *Deps, in podExecInput) (*mcp.CallT
 		return nil, podExecOutput{}, err
 	}
 
-	mirrorExecToContainerLog(ctx, deps, ns, podName, container, in.Command, result)
+	if deps.Cfg.MirrorExecToLogs {
+		mirrorExecToContainerLog(ctx, deps, ns, podName, container, in.Command, result)
+	}
 
 	stdout, truncOut := deps.Guard.Truncate(result.Stdout)
 	stderr, truncErr := deps.Guard.Truncate(result.Stderr)

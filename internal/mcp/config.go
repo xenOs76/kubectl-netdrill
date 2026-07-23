@@ -17,4 +17,8 @@ type Config struct {
 	MaxOutputBytes int64
 	// InsecureAllowAnyPod disables owner/ticket guardrails when true.
 	InsecureAllowAnyPod bool
+	// MirrorExecToLogs writes command argv and captured stdout/stderr into
+	// container PID 1 stdout (kubectl logs) when true. Default off: that
+	// disclosure is broader than the MCP session (anyone with pods/log).
+	MirrorExecToLogs bool
 }

@@ -26,6 +26,7 @@ func TestMcpCmdFlags(t *testing.T) {
 	require.NotNil(t, cmd.Flags().Lookup("exec-timeout"))
 	require.NotNil(t, cmd.Flags().Lookup("max-output-bytes"))
 	require.NotNil(t, cmd.Flags().Lookup("insecure-allow-any-pod"))
+	require.NotNil(t, cmd.Flags().Lookup("mirror-exec-to-logs"))
 }
 
 func TestMcpCmd_MissingOwner(t *testing.T) {
