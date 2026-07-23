@@ -16,14 +16,22 @@ import (
 
 // DeploymentOptions defines options for creating a troubleshooting Deployment.
 type DeploymentOptions struct {
+	// PodOptions holds shared pod create settings.
 	PodOptions
-	Replicas      *int32
-	Labels        map[string]string
-	AppLabel      string
-	CPURequest    string
+	// Replicas is the desired replica count; nil uses the API default.
+	Replicas *int32
+	// Labels are extra labels merged onto the Deployment and pods.
+	Labels map[string]string
+	// AppLabel overrides the app label used in selectors when non-empty.
+	AppLabel string
+	// CPURequest is the container CPU request (e.g. "100m").
+	CPURequest string
+	// MemoryRequest is the container memory request (e.g. "128Mi").
 	MemoryRequest string
-	CPULimit      string
-	MemoryLimit   string
+	// CPULimit is the container CPU limit (e.g. "500m").
+	CPULimit string
+	// MemoryLimit is the container memory limit (e.g. "256Mi").
+	MemoryLimit string
 }
 
 // deploymentLabels builds pod/deployment labels and selector labels from opts.

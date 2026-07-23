@@ -20,6 +20,11 @@ var (
 	mcpMaxOutputBytes      int64
 	mcpInsecureAllowAnyPod bool
 	mcpResolveImage        bool
+
+	// runMCP starts the MCP server; overridable in tests.
+	runMCP = mcpsrv.Run
+	// resolveLatestImage resolves :latest tags; overridable in tests.
+	resolveLatestImage = image.ResolveIfLatest
 )
 
 var mcpCmd = &cobra.Command{
@@ -55,7 +60,7 @@ to AI clients. Use --owner to bind create/delete/exec to pods you own.`,
 			resolveCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
 			defer cancel()
 
-			resolved, err := image.ResolveIfLatest(resolveCtx, Image, nil)
+			resolved, err := resolveLatestImage(resolveCtx, Image, nil)
 			if err != nil {
 				slog.Warn("netdrill image resolution failed; using configured image",
 					"image", Image, "err", err)
@@ -83,7 +88,7 @@ to AI clients. Use --owner to bind create/delete/exec to pods you own.`,
 			},
 		}
 
-		return mcpsrv.Run(ctx, Version, deps)
+		return runMCP(ctx, Version, deps)
 	},
 }
 

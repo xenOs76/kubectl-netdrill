@@ -14,17 +14,14 @@ import (
 )
 
 func TestPodCmd(t *testing.T) {
-	// Mock k8s.ClientProvider
-	originalProvider := k8s.ClientProvider
+	resetCmdState()
 
-	defer func() { k8s.ClientProvider = originalProvider }()
-
-	originalSilenceErrors := rootCmd.SilenceErrors
-	originalSilenceUsage := rootCmd.SilenceUsage
+	origProvider := k8s.ClientProvider
 
 	defer func() {
-		rootCmd.SilenceErrors = originalSilenceErrors
-		rootCmd.SilenceUsage = originalSilenceUsage
+		k8s.ClientProvider = origProvider
+
+		resetCmdState()
 	}()
 
 	fakeClient := fake.NewSimpleClientset()
@@ -36,27 +33,15 @@ func TestPodCmd(t *testing.T) {
 		name    string
 		args    []string
 		wantErr bool
-		setup   func()
 	}{
-		{
-			name:    "no args",
-			args:    []string{},
-			wantErr: false,
-		},
-		{
-			name:    "help",
-			args:    []string{"--help"},
-			wantErr: false,
-		},
-		{
-			name:    "success",
-			args:    []string{"test-pod"},
-			wantErr: false,
-		},
+		{name: "no args", args: []string{}, wantErr: false},
+		{name: "help", args: []string{"--help"}, wantErr: false},
+		{name: "success", args: []string{"test-pod"}, wantErr: false},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			resetCmdState()
 			rootCmd.SetArgs(append([]string{"pod"}, tt.args...))
 
 			buf := new(bytes.Buffer)
@@ -65,15 +50,6 @@ func TestPodCmd(t *testing.T) {
 			rootCmd.SilenceUsage = true
 			rootCmd.SilenceErrors = true
 
-			// Reset ClientProvider to default mock
-			k8s.ClientProvider = func(_ *genericclioptions.ConfigFlags) (kubernetes.Interface, *rest.Config, error) {
-				return fakeClient, &rest.Config{}, nil
-			}
-
-			if tt.setup != nil {
-				tt.setup()
-			}
-
 			err := rootCmd.ExecuteContext(context.Background())
 			if tt.wantErr {
 				require.Error(t, err)
@@ -81,7 +57,7 @@ func TestPodCmd(t *testing.T) {
 				require.NoError(t, err)
 			}
 
-			rootCmd.SetArgs(nil)
+			resetCmdState()
 		})
 	}
 }

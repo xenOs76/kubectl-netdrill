@@ -40,6 +40,25 @@ func DefaultRegistryClient() *RegistryClient {
 	}
 }
 
+// defaultRegistryClient is overridable in tests when ResolveIfLatest is called with a nil client.
+var defaultRegistryClient = DefaultRegistryClient
+
+// SetDefaultRegistryClient overrides the factory used when ResolveIfLatest gets a nil client.
+// It returns a restore function that resets the previous factory.
+func SetDefaultRegistryClient(fn func() *RegistryClient) (restore func()) {
+	prev := defaultRegistryClient
+
+	if fn == nil {
+		fn = DefaultRegistryClient
+	}
+
+	defaultRegistryClient = fn
+
+	return func() {
+		defaultRegistryClient = prev
+	}
+}
+
 // ParseReference splits an image reference into repository and tag.
 // Digest references (containing @) return the input unchanged as repo with empty tag
 // and should not be resolved.
@@ -276,7 +295,7 @@ func ResolveIfLatest(ctx context.Context, image string, client *RegistryClient) 
 	}
 
 	if client == nil {
-		client = DefaultRegistryClient()
+		client = defaultRegistryClient()
 	}
 
 	tag, err := client.ResolveLatestSemverTag(ctx, repo)

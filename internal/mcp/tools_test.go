@@ -87,6 +87,144 @@ func TestHandlePodCreate(t *testing.T) {
 	assert.Equal(t, "INC-1", pod.Labels[netdrill.LabelTicket])
 }
 
+func TestHandlePodCreate_NodeSelector(t *testing.T) {
+	t.Parallel()
+
+	ctx := t.Context()
+	deps := testDeps(fake.NewSimpleClientset())
+
+	_, _, err := handlePodCreate(ctx, deps, podCreateInput{
+		PodName: "on-flux",
+		NodeSelector: map[string]string{
+			"kubernetes.io/hostname": "flux",
+		},
+	})
+	require.NoError(t, err)
+
+	pod, err := deps.Client.CoreV1().Pods("default").Get(ctx, "on-flux", metav1.GetOptions{})
+	require.NoError(t, err)
+	assert.Equal(t, map[string]string{"kubernetes.io/hostname": "flux"}, pod.Spec.NodeSelector)
+}
+
+func TestHandlePodCreate_ParityFields(t *testing.T) {
+	t.Parallel()
+
+	ctx := t.Context()
+	deps := testDeps(fake.NewSimpleClientset())
+
+	_, _, err := handlePodCreate(ctx, deps, podCreateInput{
+		PodName:        "parity-pod",
+		ServiceAccount: "aws-client",
+		Env:            map[string]string{"AWS_REGION": "eu-central-1", "DEBUG": "true"},
+		Ports:          []int32{80, 443},
+		HostNetwork:    true,
+		NodeSelector: map[string]string{
+			"kubernetes.io/hostname": "flux",
+		},
+	})
+	require.NoError(t, err)
+
+	pod, err := deps.Client.CoreV1().Pods("default").Get(ctx, "parity-pod", metav1.GetOptions{})
+	require.NoError(t, err)
+	assert.Equal(t, "aws-client", pod.Spec.ServiceAccountName)
+	assert.True(t, pod.Spec.HostNetwork)
+	assert.Equal(t, map[string]string{"kubernetes.io/hostname": "flux"}, pod.Spec.NodeSelector)
+	require.Len(t, pod.Spec.Containers[0].Ports, 2)
+	assert.Equal(t, int32(80), pod.Spec.Containers[0].Ports[0].ContainerPort)
+	assert.Equal(t, int32(443), pod.Spec.Containers[0].Ports[1].ContainerPort)
+
+	env := map[string]string{}
+	for _, e := range pod.Spec.Containers[0].Env {
+		env[e.Name] = e.Value
+	}
+
+	assert.Equal(t, "eu-central-1", env["AWS_REGION"])
+	assert.Equal(t, "true", env["DEBUG"])
+}
+
+func TestHandleRunCreate_NodeSelector(t *testing.T) {
+	t.Parallel()
+
+	ctx := t.Context()
+	deps := testDeps(fake.NewSimpleClientset())
+
+	_, _, err := handleRunCreate(ctx, deps, runCreateInput{
+		podCreateInput: podCreateInput{
+			PodName: "run-flux",
+			NodeSelector: map[string]string{
+				"kubernetes.io/hostname": "flux",
+			},
+		},
+		Command: []string{"true"},
+	})
+	require.NoError(t, err)
+
+	pod, err := deps.Client.CoreV1().Pods("default").Get(ctx, "run-flux", metav1.GetOptions{})
+	require.NoError(t, err)
+	assert.Equal(t, map[string]string{"kubernetes.io/hostname": "flux"}, pod.Spec.NodeSelector)
+	assert.Equal(t, []string{"true"}, pod.Spec.Containers[0].Command)
+}
+
+func TestHandleDeploymentCreate_NodeSelector(t *testing.T) {
+	t.Parallel()
+
+	ctx := t.Context()
+	deps := testDeps(fake.NewSimpleClientset())
+
+	_, out, err := handleDeploymentCreate(ctx, deps, deploymentCreateInput{
+		Name: "dep-flux",
+		NodeSelector: map[string]string{
+			"kubernetes.io/hostname": "flux",
+		},
+	})
+	require.NoError(t, err)
+	assert.Equal(t, "dep-flux", out.PodName)
+
+	dep, err := deps.Client.AppsV1().Deployments("default").Get(ctx, "dep-flux", metav1.GetOptions{})
+	require.NoError(t, err)
+	assert.Equal(t, map[string]string{"kubernetes.io/hostname": "flux"}, dep.Spec.Template.Spec.NodeSelector)
+}
+
+func TestHandleDeploymentCreate_ParityFields(t *testing.T) {
+	t.Parallel()
+
+	ctx := t.Context()
+	deps := testDeps(fake.NewSimpleClientset())
+	replicas := int32(3)
+
+	_, _, err := handleDeploymentCreate(ctx, deps, deploymentCreateInput{
+		Name:           "dep-parity",
+		ServiceAccount: "aws-client",
+		Env:            map[string]string{"DEBUG": "1"},
+		Ports:          []int32{8080},
+		HostNetwork:    true,
+		Replicas:       &replicas,
+		Labels:         map[string]string{"team": "network"},
+		CPURequest:     "100m",
+		MemoryRequest:  "128Mi",
+		CPULimit:       "200m",
+		MemoryLimit:    "256Mi",
+		NodeSelector: map[string]string{
+			"kubernetes.io/hostname": "flux",
+		},
+	})
+	require.NoError(t, err)
+
+	dep, err := deps.Client.AppsV1().Deployments("default").Get(ctx, "dep-parity", metav1.GetOptions{})
+	require.NoError(t, err)
+	assert.Equal(t, int32(3), *dep.Spec.Replicas)
+	assert.Equal(t, "aws-client", dep.Spec.Template.Spec.ServiceAccountName)
+	assert.True(t, dep.Spec.Template.Spec.HostNetwork)
+	assert.Equal(t, "network", dep.Labels["team"])
+	assert.Equal(t, map[string]string{"kubernetes.io/hostname": "flux"}, dep.Spec.Template.Spec.NodeSelector)
+	assert.Equal(t, "100m", dep.Spec.Template.Spec.Containers[0].Resources.Requests.Cpu().String())
+	assert.Equal(t, "128Mi", dep.Spec.Template.Spec.Containers[0].Resources.Requests.Memory().String())
+	assert.Equal(t, "200m", dep.Spec.Template.Spec.Containers[0].Resources.Limits.Cpu().String())
+	assert.Equal(t, "256Mi", dep.Spec.Template.Spec.Containers[0].Resources.Limits.Memory().String())
+	require.Len(t, dep.Spec.Template.Spec.Containers[0].Ports, 1)
+	assert.Equal(t, int32(8080), dep.Spec.Template.Spec.Containers[0].Ports[0].ContainerPort)
+}
+
 func TestHandlePodDelete(t *testing.T) {
 	t.Parallel()
 

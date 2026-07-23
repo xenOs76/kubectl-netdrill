@@ -17,8 +17,11 @@ import (
 
 // ExecResult holds captured output from a non-interactive exec.
 type ExecResult struct {
-	Stdout   string
-	Stderr   string
+	// Stdout is captured standard output from the remote command.
+	Stdout string
+	// Stderr is captured standard error from the remote command.
+	Stderr string
+	// ExitCode is the remote process exit code when known.
 	ExitCode int
 }
 

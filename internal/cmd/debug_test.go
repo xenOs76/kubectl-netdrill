@@ -6,7 +6,6 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/xenos76/kubectl-netdrill/internal/k8s"
 	"github.com/xenos76/kubectl-netdrill/internal/term"
@@ -21,10 +20,16 @@ import (
 
 //nolint:revive
 func TestDebugCmd(t *testing.T) {
+	resetCmdState()
+
 	// Mock k8s.ClientProvider
 	originalProvider := k8s.ClientProvider
 
-	defer func() { k8s.ClientProvider = originalProvider }()
+	defer func() {
+		k8s.ClientProvider = originalProvider
+
+		resetCmdState()
+	}()
 
 	fakeClient := fake.NewSimpleClientset()
 	_, err := fakeClient.CoreV1().Pods("default").Create(context.Background(), &corev1.Pod{
@@ -110,6 +115,8 @@ func TestDebugCmd(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			resetCmdState()
+
 			buf := new(bytes.Buffer)
 			rootCmd.SetOut(buf)
 			rootCmd.SetErr(buf)
@@ -117,10 +124,12 @@ func TestDebugCmd(t *testing.T) {
 
 			err := rootCmd.ExecuteContext(context.Background())
 			if tt.wantErr {
-				assert.Error(t, err)
+				require.Error(t, err)
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 			}
+
+			resetCmdState()
 		})
 	}
 }

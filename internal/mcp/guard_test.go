@@ -96,6 +96,15 @@ func TestGuardAuthorizeDeployment_MissingManaged(t *testing.T) {
 	require.Error(t, g.AuthorizeDeployment(dep, ""))
 }
 
+func TestGuardAuthorizeDeployment_AllowAnyPod(t *testing.T) {
+	t.Parallel()
+
+	g := Guard{Owner: "alice", AllowAnyPod: true}
+	dep := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "x"}}
+
+	require.NoError(t, g.AuthorizeDeployment(dep, ""))
+}
+
 func TestGuardValidateContainer(t *testing.T) {
 	t.Parallel()
 

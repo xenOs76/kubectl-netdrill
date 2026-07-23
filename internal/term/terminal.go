@@ -14,6 +14,15 @@ import (
 // getWinsize is a function variable for term.GetWinsize to allow mocking in tests.
 var getWinsize = term.GetWinsize
 
+// isTerminalFn reports whether fd is a terminal; overridable in tests.
+var isTerminalFn = term.IsTerminal
+
+// makeRawFn puts the terminal into raw mode; overridable in tests.
+var makeRawFn = term.MakeRaw
+
+// restoreTerminalFn restores terminal state; overridable in tests.
+var restoreTerminalFn = term.RestoreTerminal
+
 // SizeQueue implements remotecommand.TerminalSizeQueue
 type SizeQueue struct {
 	resizeChan chan remotecommand.TerminalSize
@@ -97,16 +106,16 @@ var RawModeSetter = SetRawMode
 // SetRawMode puts the terminal in raw mode and returns a function to restore it.
 func SetRawMode() (func(), error) {
 	stdInFd := os.Stdin.Fd()
-	if !term.IsTerminal(stdInFd) {
+	if !isTerminalFn(stdInFd) {
 		return func() {}, nil
 	}
 
-	state, err := term.MakeRaw(stdInFd)
+	state, err := makeRawFn(stdInFd)
 	if err != nil {
 		return nil, err
 	}
 
 	return func() {
-		_ = term.RestoreTerminal(stdInFd, state)
+		_ = restoreTerminalFn(stdInFd, state)
 	}, nil
 }

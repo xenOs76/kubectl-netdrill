@@ -55,7 +55,9 @@ func registerContainerToolPrompts(server *mcp.Server) {
 				Role: "user",
 				Content: &mcp.TextContent{
 					Text: "Read the netdrill://container-tools resource. " +
-						"Create a netdrill pod with an appropriate serviceAccountName for AWS (IRSA on EKS). " +
+						"Create a netdrill pod with serviceAccount set for AWS (IRSA on EKS). " +
+						"If the user names a node, pass nodeSelector " +
+						"{\"kubernetes.io/hostname\":\"<node>\"} on create. " +
 						"Wait until Running, then netdrill_pod_exec with command [\"aws-probe\",\"whoami\"]. " +
 						"Report account, ARN, and auth method. " +
 						"For S3 listing use [\"aws-probe\",\"s3\",\"list-buckets\"]. " +
@@ -75,8 +77,11 @@ func registerContainerToolPrompts(server *mcp.Server) {
 			Messages: []*mcp.PromptMessage{{
 				Role: "user",
 				Content: &mcp.TextContent{
-					Text: "Read netdrill://container-tools. Create a netdrill pod, wait until Running, " +
-						"then netdrill_pod_exec with https-wrench per upstream docs (config or flags). " +
+					Text: "Read netdrill://container-tools. Create a netdrill pod " +
+						"(if the user names a node, pass nodeSelector " +
+						"{\"kubernetes.io/hostname\":\"<node>\"} on create), " +
+						"wait until Running, then netdrill_pod_exec with https-wrench " +
+						"(prefer https-wrench over openssl/curl for TLS/cert checks). " +
 						"Summarize TLS/cert results. Delete the pod when finished.",
 				},
 			}},
@@ -100,8 +105,10 @@ func registerContainerToolPrompts(server *mcp.Server) {
 			Messages: []*mcp.PromptMessage{{
 				Role: "user",
 				Content: &mcp.TextContent{
-					Text: "Read netdrill://container-tools. Create a netdrill pod, wait until Running, " +
-						"then netdrill_pod_exec: try ping to \"" + target + "\", " +
+					Text: "Read netdrill://container-tools. Create a netdrill pod " +
+						"(if the user names a node, pass nodeSelector " +
+						"{\"kubernetes.io/hostname\":\"<node>\"} on create), " +
+						"wait until Running, then netdrill_pod_exec: try ping to \"" + target + "\", " +
 						"then curl or doggo/nslookup as appropriate. " +
 						"For authoritative DNS use doggo with --rd=false and @tcp://NS_IP per the catalog. " +
 						"Summarize reachability and DNS. Delete the pod when finished.",

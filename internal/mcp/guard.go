@@ -15,9 +15,12 @@ var ErrForbidden = errors.New("forbidden: pod not authorized for this MCP sessio
 
 // Guard enforces MCP access policy on netdrill-managed resources.
 type Guard struct {
-	Owner       string
+	// Owner must match the kubectl-netdrill.io/owner label unless AllowAnyPod.
+	Owner string
+	// AllowAnyPod skips owner/ticket checks when true (insecure).
 	AllowAnyPod bool
-	MaxOutput   int64
+	// MaxOutput is the max captured exec output bytes before truncation.
+	MaxOutput int64
 }
 
 // AuthorizePod checks labels on a pod before mutating operations.
