@@ -1,3 +1,9 @@
+## 0.2.3 (2026-07-23)
+
+### Feat
+
+    improve kubectl plugin's feature coverage in MCP
+
 ## 0.2.2 (2026-07-22)
 
 ### CI
