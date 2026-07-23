@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"slices"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -22,6 +23,16 @@ type namespaceInput struct {
 type podCreateInput struct {
 	namespaceInput
 	PodName string `json:"podName,omitempty" jsonschema:"Pod name (default netdrill)"`
+	// Node labels for scheduling (e.g. kubernetes.io/hostname=<node>).
+	NodeSelector map[string]string `json:"nodeSelector,omitempty" jsonschema:"Node labels for scheduling"`
+	// ServiceAccount for the pod (required for EKS IRSA).
+	ServiceAccount string `json:"serviceAccount,omitempty" jsonschema:"ServiceAccount name (e.g. for EKS IRSA)"`
+	// Environment variables KEY=VALUE style map.
+	Env map[string]string `json:"env,omitempty" jsonschema:"Environment variables"`
+	// Container ports to expose.
+	Ports []int32 `json:"ports,omitempty" jsonschema:"Container ports to expose"`
+	// Use the host network namespace.
+	HostNetwork bool `json:"hostNetwork,omitempty" jsonschema:"Use host networking"`
 }
 
 type podNameInput struct {
@@ -43,6 +54,24 @@ type runCreateInput struct {
 type deploymentCreateInput struct {
 	namespaceInput
 	Name string `json:"name,omitempty" jsonschema:"Deployment name (default netdrill)"`
+	// Node labels for scheduling (e.g. kubernetes.io/hostname=<node>).
+	NodeSelector map[string]string `json:"nodeSelector,omitempty" jsonschema:"Node labels for scheduling"`
+	// ServiceAccount for the pod (required for EKS IRSA).
+	ServiceAccount string `json:"serviceAccount,omitempty" jsonschema:"ServiceAccount name (e.g. for EKS IRSA)"`
+	// Environment variables KEY=VALUE style map.
+	Env map[string]string `json:"env,omitempty" jsonschema:"Environment variables"`
+	// Container ports to expose.
+	Ports []int32 `json:"ports,omitempty" jsonschema:"Container ports to expose"`
+	// Use the host network namespace.
+	HostNetwork bool `json:"hostNetwork,omitempty" jsonschema:"Use host networking"`
+	// Replica count (default 1).
+	Replicas *int32 `json:"replicas,omitempty" jsonschema:"Number of replicas (default 1)"`
+	// Additional labels on the Deployment and pod template.
+	Labels        map[string]string `json:"labels,omitempty" jsonschema:"Additional labels"`
+	CPURequest    string            `json:"cpuRequest,omitempty" jsonschema:"CPU request (e.g. 100m)"`
+	MemoryRequest string            `json:"memoryRequest,omitempty" jsonschema:"Memory request (e.g. 128Mi)"`
+	CPULimit      string            `json:"cpuLimit,omitempty" jsonschema:"CPU limit (e.g. 200m)"`
+	MemoryLimit   string            `json:"memoryLimit,omitempty" jsonschema:"Memory limit (e.g. 256Mi)"`
 }
 
 type deploymentNameInput struct {
@@ -92,8 +121,11 @@ func registerTools(server *mcp.Server, deps *Deps) {
 
 func registerPodTools(server *mcp.Server, deps *Deps) {
 	mcp.AddTool(server, &mcp.Tool{
-		Name:        "netdrill_pod_create",
-		Description: "Create a persistent netdrill troubleshooting pod",
+		Name: "netdrill_pod_create",
+		Description: "Create a persistent netdrill troubleshooting pod. " +
+			"Supports nodeSelector (e.g. kubernetes.io/hostname=<node>), serviceAccount (IRSA), " +
+			"env, ports, and hostNetwork. " +
+			"Image includes https-wrench; prefer it for TLS/HTTPS via netdrill_pod_exec.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in podCreateInput) (
 		*mcp.CallToolResult, podCreateOutput, error,
 	) {
@@ -116,14 +148,17 @@ func registerPodTools(server *mcp.Server, deps *Deps) {
 
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "netdrill_pod_exec",
-		Description: "Run a command in a netdrill pod and return stdout/stderr",
+		Description: "Run a command in a netdrill pod; returns stdout/stderr",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in podExecInput) (*mcp.CallToolResult, podExecOutput, error) {
 		return handlePodExec(ctx, deps, in)
 	})
 
 	mcp.AddTool(server, &mcp.Tool{
-		Name:        "netdrill_run_create",
-		Description: "Create an ephemeral netdrill pod (not deleted automatically)",
+		Name: "netdrill_run_create",
+		Description: "Create an ephemeral netdrill pod (not deleted automatically). " +
+			"Supports nodeSelector, serviceAccount (IRSA), env, ports, hostNetwork, " +
+			"and optional one-shot command. " +
+			"Image includes https-wrench; prefer it for TLS/HTTPS via netdrill_pod_exec.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in runCreateInput) (
 		*mcp.CallToolResult, podCreateOutput, error,
 	) {
@@ -146,7 +181,7 @@ func registerPodTools(server *mcp.Server, deps *Deps) {
 
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "netdrill_debug_exec",
-		Description: "Run a command in the netdrill-debug ephemeral container",
+		Description: "Run a command in the netdrill-debug ephemeral container; returns stdout/stderr",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in podExecInput) (*mcp.CallToolResult, podExecOutput, error) {
 		in.ContainerName = netdrill.ContainerDebug
 		return handlePodExec(ctx, deps, in)
@@ -164,8 +199,10 @@ func registerPodTools(server *mcp.Server, deps *Deps) {
 
 func registerDeploymentTools(server *mcp.Server, deps *Deps) {
 	mcp.AddTool(server, &mcp.Tool{
-		Name:        "netdrill_deployment_create",
-		Description: "Create a netdrill troubleshooting Deployment",
+		Name: "netdrill_deployment_create",
+		Description: "Create a netdrill troubleshooting Deployment. " +
+			"Supports nodeSelector, serviceAccount (IRSA), env, ports, hostNetwork, " +
+			"replicas, labels, and CPU/memory requests/limits.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in deploymentCreateInput) (
 		*mcp.CallToolResult, podCreateOutput, error,
 	) {
@@ -196,6 +233,21 @@ func defaultPodName(name string) string {
 	return "netdrill"
 }
 
+func podConfigFromCreateInput(deps *Deps, in podCreateInput, ns, podName string) netdrill.PodConfig {
+	return netdrill.PodConfig{
+		Namespace:      ns,
+		PodName:        podName,
+		Image:          deps.Cfg.Image,
+		Owner:          deps.Cfg.Owner,
+		Ticket:         in.TicketID,
+		NodeSelector:   maps.Clone(in.NodeSelector),
+		ServiceAccount: in.ServiceAccount,
+		EnvVars:        maps.Clone(in.Env),
+		Ports:          slices.Clone(in.Ports),
+		HostNetwork:    in.HostNetwork,
+	}
+}
+
 func (deps *Deps) getAuthorizedPod(
 	ctx context.Context,
 	ns, podName, ticketID string,
@@ -216,14 +268,7 @@ func handlePodCreate(ctx context.Context, deps *Deps, in podCreateInput) (*mcp.C
 	ns := resolveNamespace(deps, in.Namespace)
 	podName := defaultPodName(in.PodName)
 
-	cfg := netdrill.PodConfig{
-		Namespace: ns,
-		PodName:   podName,
-		Image:     deps.Cfg.Image,
-		Owner:     deps.Cfg.Owner,
-		Ticket:    in.TicketID,
-	}
-
+	cfg := podConfigFromCreateInput(deps, in, ns, podName)
 	opts := k8s.PodOptionsFromConfig(cfg)
 
 	_, err := k8s.CreatePod(ctx, deps.Client, opts)
@@ -245,13 +290,7 @@ func handleRunCreate(ctx context.Context, deps *Deps, in runCreateInput) (*mcp.C
 	ns := resolveNamespace(deps, in.Namespace)
 	podName := defaultPodName(in.PodName)
 
-	cfg := netdrill.PodConfig{
-		Namespace: ns,
-		PodName:   podName,
-		Image:     deps.Cfg.Image,
-		Owner:     deps.Cfg.Owner,
-		Ticket:    in.TicketID,
-	}
+	cfg := podConfigFromCreateInput(deps, in.podCreateInput, ns, podName)
 
 	if len(in.Command) > 0 {
 		cfg.Command = slices.Clone(in.Command)
@@ -346,6 +385,10 @@ func handlePodExec(ctx context.Context, deps *Deps, in podExecInput) (*mcp.CallT
 		return nil, podExecOutput{}, err
 	}
 
+	if deps.Cfg.MirrorExecToLogs {
+		mirrorExecToContainerLog(ctx, deps, ns, podName, container, in.Command, result)
+	}
+
 	stdout, truncOut := deps.Guard.Truncate(result.Stdout)
 	stderr, truncErr := deps.Guard.Truncate(result.Stderr)
 
@@ -372,16 +415,30 @@ func handleDeploymentCreate(
 	name := defaultPodName(in.Name)
 	replicas := int32(1)
 
+	if in.Replicas != nil {
+		replicas = *in.Replicas
+	}
+
 	cfg := netdrill.DeploymentConfig{
 		PodConfig: netdrill.PodConfig{
-			Namespace: ns,
-			PodName:   name,
-			Image:     deps.Cfg.Image,
-			Owner:     deps.Cfg.Owner,
-			Ticket:    in.TicketID,
+			Namespace:      ns,
+			PodName:        name,
+			Image:          deps.Cfg.Image,
+			Owner:          deps.Cfg.Owner,
+			Ticket:         in.TicketID,
+			NodeSelector:   maps.Clone(in.NodeSelector),
+			ServiceAccount: in.ServiceAccount,
+			EnvVars:        maps.Clone(in.Env),
+			Ports:          slices.Clone(in.Ports),
+			HostNetwork:    in.HostNetwork,
 		},
-		AppLabel: name,
-		Replicas: &replicas,
+		AppLabel:      name,
+		Replicas:      &replicas,
+		Labels:        maps.Clone(in.Labels),
+		CPURequest:    in.CPURequest,
+		MemoryRequest: in.MemoryRequest,
+		CPULimit:      in.CPULimit,
+		MemoryLimit:   in.MemoryLimit,
 	}
 
 	opts := k8s.DeploymentOptionsFromConfig(cfg)

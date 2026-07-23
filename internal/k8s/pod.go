@@ -42,18 +42,30 @@ var SPDYExecutorCreator = remotecommand.NewSPDYExecutor
 
 // PodOptions defines options for creating a troubleshooting Pod.
 type PodOptions struct {
-	Namespace      string
-	PodName        string
-	Image          string
-	HostNetwork    bool
-	Command        []string
-	Args           []string
-	NodeSelector   map[string]string
+	// Namespace is the Kubernetes namespace for the pod.
+	Namespace string
+	// PodName is the pod metadata name.
+	PodName string
+	// Image is the container image for the netdrill container.
+	Image string
+	// HostNetwork requests hostNetwork on the pod spec.
+	HostNetwork bool
+	// Command overrides the container entrypoint when non-empty.
+	Command []string
+	// Args are container args appended after Command.
+	Args []string
+	// NodeSelector constrains scheduling to matching nodes.
+	NodeSelector map[string]string
+	// ServiceAccount is the ServiceAccount name (e.g. for EKS IRSA).
 	ServiceAccount string
-	Ports          []corev1.ContainerPort
-	EnvVars        []corev1.EnvVar
-	Owner          string
-	Ticket         string
+	// Ports are container ports to expose on the pod.
+	Ports []corev1.ContainerPort
+	// EnvVars are environment variables for the netdrill container.
+	EnvVars []corev1.EnvVar
+	// Owner stamps the kubectl-netdrill.io/owner label.
+	Owner string
+	// Ticket stamps the kubectl-netdrill.io/ticket label when non-empty.
+	Ticket string
 }
 
 // CreatePod creates a new Pod with the specified options.

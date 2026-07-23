@@ -4,9 +4,10 @@ The default netdrill image (`ghcr.io/xenos76/netdrill`) ships CLIs and utilities
 in-cluster troubleshooting. When `--resolve-image=true`, MCP startup resolves untagged/`:latest` GHCR references to the
 highest semver tag (for example `ghcr.io/xenos76/netdrill:v0.1.2`) so pods pull a concrete release.
 If resolution fails, MCP uses the configured image unchanged.
-Use **netdrill_pod_create** (with a ServiceAccount when
-AWS access is needed), **netdrill_pod_wait**, then **netdrill_pod_exec** with the command
-arrays below. Credentials come from the pod (for example EKS IRSA), not from the MCP host.
+Use **netdrill_pod_create** (pass **`serviceAccount`** when AWS/IRSA access is
+needed; optional **`nodeSelector`**, **`env`**, **`ports`**, **`hostNetwork`**),
+**netdrill_pod_wait**, then **netdrill_pod_exec** with the command arrays below.
+Credentials come from the pod (for example EKS IRSA), not from the MCP host.
 
 For direct AWS API access from your workstation, use the separate **aws-probe mcp**
 server instead of re-implementing AWS tools here.
@@ -16,9 +17,25 @@ server instead of re-implementing AWS tools here.
 | Tool | Path | Purpose | Example `command` for netdrill_pod_exec |
 |------|------|---------|----------------------------------------|
 | aws-probe | `/usr/local/bin/aws-probe` | AWS read-only CLI (S3, SQS, Secrets, MSK, SNS, CloudFront, whoami) | `["aws-probe","whoami"]`, `["aws-probe","s3","list-buckets"]` |
-| https-wrench | `/usr/local/bin/https-wrench` | HTTPS/TLS probes from inside the cluster | `["https-wrench","--help"]` (see https-wrench docs for request YAML) |
+| https-wrench | `/usr/local/bin/https-wrench` | HTTPS/TLS probes from inside the cluster | `["https-wrench","certinfo","--tls-endpoint","example.com:443"]` (prefer over openssl/curl) |
 
 Upstream: [aws-probe](https://github.com/xenos76/aws-probe), [https-wrench](https://github.com/xenos76/https-wrench).
+
+## Create options
+
+Pass these JSON fields on `netdrill_pod_create` / `netdrill_run_create` /
+`netdrill_deployment_create` (same meaning as the CLI flags):
+
+| Param | CLI flag | Notes |
+|-------|----------|-------|
+| `nodeSelector` | `--node-selector` | e.g. `{"kubernetes.io/hostname":"<nodeName>"}` |
+| `serviceAccount` | `--service-account` | Required for EKS IRSA |
+| `env` | `--env` | Map of environment variables |
+| `ports` | `--port` | Array of container ports |
+| `hostNetwork` | `--host-network` | Host network namespace |
+| `replicas` / `labels` / `cpuRequest` / `memoryRequest` / `cpuLimit` / `memoryLimit` | matching deployment flags | Deployment create only |
+
+Do not apply ad-hoc Pod YAML with `nodeName` to bypass netdrill create tools.
 
 ## Network and shell utilities
 
@@ -75,7 +92,10 @@ verification. Use `--skip-hostname-verification` only for deliberate test setups
 
 ## Typical workflow
 
-1. **netdrill_pod_create** — set `serviceAccountName` when the pod must assume an IAM role (IRSA).
+1. **netdrill_pod_create** — set `nodeSelector` when pinning to a named node; set
+   `serviceAccount` when the pod must assume an IAM role (IRSA); use `env` /
+   `ports` / `hostNetwork` as needed.
 2. **netdrill_pod_wait** — wait until phase Running.
-3. **netdrill_pod_exec** — run a row from the tables above.
+3. **netdrill_pod_exec** — run a row from the tables above (prefer **https-wrench**
+   for TLS/HTTPS and **aws-probe** for AWS).
 4. **netdrill_pod_delete** — cleanup when finished.

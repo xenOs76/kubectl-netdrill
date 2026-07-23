@@ -20,12 +20,20 @@ func (*mockExecutor) StreamWithContext(_ context.Context, _ remotecommand.Stream
 }
 
 func TestRootCmdExecute(t *testing.T) {
+	resetCmdState()
+
+	defer resetCmdState()
+
 	rootCmd.SetArgs([]string{"--help"})
 	err := rootCmd.Execute()
 	require.NoError(t, err)
 }
 
 func TestRootCmdVersion(t *testing.T) {
+	resetCmdState()
+
+	defer resetCmdState()
+
 	rootCmd.SetArgs([]string{"--version"})
 	err := rootCmd.Execute()
 	require.NoError(t, err)

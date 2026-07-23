@@ -14,11 +14,16 @@ import (
 
 // EphemeralOptions defines options for adding an ephemeral container.
 type EphemeralOptions struct {
-	Namespace     string
-	PodName       string
+	// Namespace is the Kubernetes namespace of the target pod.
+	Namespace string
+	// PodName is the name of the pod to attach the ephemeral container to.
+	PodName string
+	// ContainerName is the ephemeral container name (defaults upstream when empty).
 	ContainerName string
-	Image         string
-	TargetProcess string // Container name to share PID namespace with
+	// Image is the image for the ephemeral container.
+	Image string
+	// TargetProcess is the target container name to share a PID namespace with.
+	TargetProcess string
 }
 
 // AddEphemeralContainer adds an ephemeral container to an existing Pod.

@@ -5,7 +5,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/xenos76/kubectl-netdrill/internal/k8s"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/kubernetes"
@@ -14,10 +14,16 @@ import (
 )
 
 func TestDeploymentCmd(t *testing.T) {
+	resetCmdState()
+
 	// Mock k8s.ClientProvider
 	originalProvider := k8s.ClientProvider
 
-	defer func() { k8s.ClientProvider = originalProvider }()
+	defer func() {
+		k8s.ClientProvider = originalProvider
+
+		resetCmdState()
+	}()
 
 	fakeClient := fake.NewSimpleClientset()
 	k8s.ClientProvider = func(_ *genericclioptions.ConfigFlags) (kubernetes.Interface, *rest.Config, error) {
@@ -48,6 +54,8 @@ func TestDeploymentCmd(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			resetCmdState()
+
 			buf := new(bytes.Buffer)
 			rootCmd.SetOut(buf)
 			rootCmd.SetErr(buf)
@@ -55,10 +63,12 @@ func TestDeploymentCmd(t *testing.T) {
 
 			err := rootCmd.ExecuteContext(context.Background())
 			if tt.wantErr {
-				assert.Error(t, err)
+				require.Error(t, err)
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 			}
+
+			resetCmdState()
 		})
 	}
 }

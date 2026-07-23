@@ -19,7 +19,13 @@ var (
 	mcpExecTimeout         time.Duration
 	mcpMaxOutputBytes      int64
 	mcpInsecureAllowAnyPod bool
+	mcpMirrorExecToLogs    bool
 	mcpResolveImage        bool
+
+	// runMCP starts the MCP server; overridable in tests.
+	runMCP = mcpsrv.Run
+	// resolveLatestImage resolves :latest tags; overridable in tests.
+	resolveLatestImage = image.ResolveIfLatest
 )
 
 var mcpCmd = &cobra.Command{
@@ -55,7 +61,7 @@ to AI clients. Use --owner to bind create/delete/exec to pods you own.`,
 			resolveCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
 			defer cancel()
 
-			resolved, err := image.ResolveIfLatest(resolveCtx, Image, nil)
+			resolved, err := resolveLatestImage(resolveCtx, Image, nil)
 			if err != nil {
 				slog.Warn("netdrill image resolution failed; using configured image",
 					"image", Image, "err", err)
@@ -75,6 +81,7 @@ to AI clients. Use --owner to bind create/delete/exec to pods you own.`,
 				ExecTimeout:         mcpExecTimeout,
 				MaxOutputBytes:      mcpMaxOutputBytes,
 				InsecureAllowAnyPod: mcpInsecureAllowAnyPod,
+				MirrorExecToLogs:    mcpMirrorExecToLogs,
 			},
 			Guard: mcpsrv.Guard{
 				Owner:       owner,
@@ -83,7 +90,7 @@ to AI clients. Use --owner to bind create/delete/exec to pods you own.`,
 			},
 		}
 
-		return mcpsrv.Run(ctx, Version, deps)
+		return runMCP(ctx, Version, deps)
 	},
 }
 
@@ -98,6 +105,8 @@ func init() {
 		"Maximum combined stdout+stderr bytes per exec")
 	mcpCmd.Flags().BoolVar(&mcpInsecureAllowAnyPod, "insecure-allow-any-pod", false,
 		"Skip managed/owner label checks (dangerous)")
+	mcpCmd.Flags().BoolVar(&mcpMirrorExecToLogs, "mirror-exec-to-logs", false,
+		"Mirror exec argv and captured stdout/stderr into container logs (visible to anyone with pods/log)")
 	mcpCmd.Flags().BoolVar(&mcpResolveImage, "resolve-image", true,
 		"Resolve :latest to the highest semver tag on GHCR (falls back on error)")
 }

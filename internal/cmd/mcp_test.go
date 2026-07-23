@@ -13,16 +13,12 @@ import (
 )
 
 func TestMcpCmdRegistered(t *testing.T) {
-	t.Parallel()
-
 	cmd, _, err := rootCmd.Find([]string{"mcp"})
 	require.NoError(t, err)
 	assert.Equal(t, "mcp", cmd.Name())
 }
 
 func TestMcpCmdFlags(t *testing.T) {
-	t.Parallel()
-
 	cmd, _, err := rootCmd.Find([]string{"mcp"})
 	require.NoError(t, err)
 
@@ -30,6 +26,7 @@ func TestMcpCmdFlags(t *testing.T) {
 	require.NotNil(t, cmd.Flags().Lookup("exec-timeout"))
 	require.NotNil(t, cmd.Flags().Lookup("max-output-bytes"))
 	require.NotNil(t, cmd.Flags().Lookup("insecure-allow-any-pod"))
+	require.NotNil(t, cmd.Flags().Lookup("mirror-exec-to-logs"))
 }
 
 func TestMcpCmd_MissingOwner(t *testing.T) {
@@ -43,8 +40,11 @@ func TestMcpCmd_MissingOwner(t *testing.T) {
 		mcpOwner = origOwner
 		rootCmd.SilenceErrors = origSilenceErrors
 		rootCmd.SilenceUsage = origSilenceUsage
-		rootCmd.SetArgs(nil)
+
+		resetCmdState()
 	}()
+
+	resetCmdState()
 
 	k8s.ClientProvider = func(_ *genericclioptions.ConfigFlags) (kubernetes.Interface, *rest.Config, error) {
 		return fake.NewSimpleClientset(), &rest.Config{}, nil
