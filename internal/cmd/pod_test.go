@@ -74,3 +74,46 @@ func TestPodCmd(t *testing.T) {
 		})
 	}
 }
+
+func TestPodCmd_SuccessiveLabeledExecutions(t *testing.T) {
+	resetCmdState()
+
+	origProvider := k8s.ClientProvider
+	defer func() {
+		k8s.ClientProvider = origProvider
+
+		resetCmdState()
+	}()
+
+	fakeClient := fake.NewSimpleClientset()
+	k8s.ClientProvider = func(_ *genericclioptions.ConfigFlags) (kubernetes.Interface, *rest.Config, error) {
+		return fakeClient, &rest.Config{}, nil
+	}
+
+	rootCmd.SetArgs([]string{"pod", "pod-first", "--labels", "env=test1,team=alpha"})
+	require.NoError(t, rootCmd.ExecuteContext(context.Background()))
+
+	p1, err := fakeClient.CoreV1().Pods("default").Get(
+		context.Background(),
+		"pod-first",
+		metav1.GetOptions{},
+	)
+	require.NoError(t, err)
+	require.Equal(t, "test1", p1.Labels["env"])
+	require.Equal(t, "alpha", p1.Labels["team"])
+
+	resetCmdState()
+
+	// Second execution with labels after resetCmdState must not panic and must set new labels
+	rootCmd.SetArgs([]string{"pod", "pod-second", "--labels", "env=test2,team=beta"})
+	require.NoError(t, rootCmd.ExecuteContext(context.Background()))
+
+	p2, err := fakeClient.CoreV1().Pods("default").Get(
+		context.Background(),
+		"pod-second",
+		metav1.GetOptions{},
+	)
+	require.NoError(t, err)
+	require.Equal(t, "test2", p2.Labels["env"])
+	require.Equal(t, "beta", p2.Labels["team"])
+}

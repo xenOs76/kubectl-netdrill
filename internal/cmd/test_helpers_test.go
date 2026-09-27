@@ -17,7 +17,7 @@ func resetCmdState() {
 	rootCmd.SetArgs(nil)
 	rootCmd.SilenceErrors = false
 	rootCmd.SilenceUsage = false
-	Labels = nil
+	Labels = make(map[string]string)
 
 	var resetFlags func(c *cobra.Command)
 

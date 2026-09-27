@@ -84,10 +84,14 @@ func podLabels(opts PodOptions) map[string]string {
 	labels[netdrill.LabelManaged] = protected[netdrill.LabelManaged]
 	if v, ok := protected[netdrill.LabelOwner]; ok {
 		labels[netdrill.LabelOwner] = v
+	} else {
+		delete(labels, netdrill.LabelOwner)
 	}
 
 	if v, ok := protected[netdrill.LabelTicket]; ok {
 		labels[netdrill.LabelTicket] = v
+	} else {
+		delete(labels, netdrill.LabelTicket)
 	}
 
 	return labels
