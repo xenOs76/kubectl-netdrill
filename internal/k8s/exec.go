@@ -102,6 +102,7 @@ func ExecCommand(
 	return result, nil
 }
 
+// truncateBytes truncates string s to byteLimit bytes while preserving valid UTF-8 boundaries.
 func truncateBytes(s string, byteLimit int64) string {
 	if byteLimit <= 0 || int64(len(s)) <= byteLimit {
 		return s

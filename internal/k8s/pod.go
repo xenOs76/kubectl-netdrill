@@ -151,6 +151,7 @@ func ensureEKSToken(spec *corev1.PodSpec) {
 	addEKSTokenVolume(spec, tokenPath)
 }
 
+// getEKSTokenConfig extracts EKS IRSA token file path and checks if an IAM role ARN is present in container env vars.
 func getEKSTokenConfig(spec *corev1.PodSpec) (string, bool) {
 	var tokenPath string
 
@@ -169,6 +170,7 @@ func getEKSTokenConfig(spec *corev1.PodSpec) (string, bool) {
 	return tokenPath, hasRole
 }
 
+// addEKSTokenVolume attaches a projected ServiceAccount token volume and mount for AWS IRSA to the pod spec.
 func addEKSTokenVolume(spec *corev1.PodSpec, tokenPath string) {
 	volumeName := "aws-iam-token"
 	volumeExists := false
