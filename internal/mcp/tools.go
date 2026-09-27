@@ -33,6 +33,8 @@ type podCreateInput struct {
 	Ports []int32 `json:"ports,omitempty" jsonschema:"Container ports to expose"`
 	// Use the host network namespace.
 	HostNetwork bool `json:"hostNetwork,omitempty" jsonschema:"Use host networking"`
+	// Additional labels on the pod.
+	Labels map[string]string `json:"labels,omitempty" jsonschema:"Additional labels"`
 }
 
 type podNameInput struct {
@@ -245,6 +247,7 @@ func podConfigFromCreateInput(deps *Deps, in podCreateInput, ns, podName string)
 		EnvVars:        maps.Clone(in.Env),
 		Ports:          slices.Clone(in.Ports),
 		HostNetwork:    in.HostNetwork,
+		Labels:         maps.Clone(in.Labels),
 	}
 }
 

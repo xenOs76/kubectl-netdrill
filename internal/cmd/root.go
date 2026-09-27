@@ -25,6 +25,8 @@ var (
 	EnvVars map[string]string
 	// HostNetwork specifies if host networking should be used.
 	HostNetwork bool
+	// Labels are additional labels for resources (pods or deployments).
+	Labels map[string]string
 )
 
 var rootCmd = &cobra.Command{

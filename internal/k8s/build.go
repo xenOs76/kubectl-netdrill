@@ -52,19 +52,28 @@ func PodOptionsFromConfig(cfg netdrill.PodConfig) PodOptions {
 		Args:           args,
 		Owner:          cfg.Owner,
 		Ticket:         cfg.Ticket,
+		Labels:         cfg.Labels,
 	}
 }
 
 // DeploymentOptionsFromConfig converts netdrill.DeploymentConfig into DeploymentOptions.
 func DeploymentOptionsFromConfig(cfg netdrill.DeploymentConfig) DeploymentOptions {
-	return DeploymentOptions{
+	labels := cfg.Labels
+	if len(labels) == 0 && len(cfg.PodConfig.Labels) > 0 {
+		labels = cfg.PodConfig.Labels
+	}
+
+	opts := DeploymentOptions{
 		PodOptions:    PodOptionsFromConfig(cfg.PodConfig),
 		Replicas:      cfg.Replicas,
-		Labels:        cfg.Labels,
+		Labels:        labels,
 		AppLabel:      cfg.AppLabel,
 		CPURequest:    cfg.CPURequest,
 		MemoryRequest: cfg.MemoryRequest,
 		CPULimit:      cfg.CPULimit,
 		MemoryLimit:   cfg.MemoryLimit,
 	}
+	opts.PodOptions.Labels = labels
+
+	return opts
 }

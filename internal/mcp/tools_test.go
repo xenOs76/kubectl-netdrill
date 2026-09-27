@@ -142,6 +142,29 @@ func TestHandlePodCreate_ParityFields(t *testing.T) {
 	assert.Equal(t, "true", env["DEBUG"])
 }
 
+func TestHandlePodCreate_Labels(t *testing.T) {
+	t.Parallel()
+
+	ctx := t.Context()
+	deps := testDeps(fake.NewSimpleClientset())
+
+	_, _, err := handlePodCreate(ctx, deps, podCreateInput{
+		PodName: "labeled-pod",
+		Labels: map[string]string{
+			"env":  "production",
+			"tier": "tools",
+		},
+	})
+	require.NoError(t, err)
+
+	pod, err := deps.Client.CoreV1().Pods("default").Get(ctx, "labeled-pod", metav1.GetOptions{})
+	require.NoError(t, err)
+	assert.Equal(t, "production", pod.Labels["env"])
+	assert.Equal(t, "tools", pod.Labels["tier"])
+	assert.Equal(t, netdrill.LabelAppValue, pod.Labels[netdrill.LabelApp])
+	assert.Equal(t, netdrill.LabelManagedValue, pod.Labels[netdrill.LabelManaged])
+}
+
 func TestHandleRunCreate_NodeSelector(t *testing.T) {
 	t.Parallel()
 

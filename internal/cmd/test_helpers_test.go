@@ -1,9 +1,15 @@
 package cmd
 
 import (
+	"os"
+
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 )
+
+func init() {
+	_ = os.Setenv("KUBECONFIG", os.DevNull)
+}
 
 // resetCmdState clears sticky cobra args/flags left by prior Execute calls
 // (e.g. --help, --version) and restores Silence* defaults.
@@ -11,6 +17,7 @@ func resetCmdState() {
 	rootCmd.SetArgs(nil)
 	rootCmd.SilenceErrors = false
 	rootCmd.SilenceUsage = false
+	Labels = nil
 
 	var resetFlags func(c *cobra.Command)
 
