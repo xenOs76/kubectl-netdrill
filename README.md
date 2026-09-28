@@ -233,6 +233,7 @@ kubectl netdrill pod my-persistent-troubleshooter
 
 | Flag                | Short | Description                                          | Default                           |
 | ------------------- | ----- | ---------------------------------------------------- | --------------------------------- |
+| `--labels`          |       | Additional labels (e.g. `key=val`)                   |                                   |
 | `--service-account` |       | ServiceAccount to use for the pod                    |                                   |
 | `--port`            |       | Ports to expose on the container (e.g., `--port 80`) |                                   |
 | `--env`             |       | Environment variables (e.g., `--env KEY=VALUE`)      |                                   |
@@ -246,6 +247,12 @@ Create a persistent troubleshooting pod:
 
 ```bash
 kubectl netdrill pod
+```
+
+Create a pod with custom labels:
+
+```bash
+kubectl netdrill pod --labels env=dev,tier=backend
 ```
 
 Create a pod with a custom service account:
@@ -498,7 +505,8 @@ On MCP initialize, the server returns instructions that steer agents to:
 | `--node-selector` | yes | `nodeSelector` |
 | `--service-account` | yes | `serviceAccount` |
 | `--env` / `--port` / `--host-network` | yes | `env` / `ports` / `hostNetwork` |
-| Deployment replicas/resources/labels | yes | `replicas` / `cpuRequest` / … / `labels` |
+| Pod/Deployment labels | yes | `labels` |
+| Deployment replicas/resources | yes | `replicas` / `cpuRequest` / … |
 | Debug `--target` | yes | `targetContainer` on `netdrill_debug_add` |
 
 #### MCP tools (v1)
@@ -508,7 +516,7 @@ Shared optional fields on most tools: `namespace` (defaults to MCP `-n`),
 
 | Tool | Required | Optional | Purpose |
 | ---- | -------- | -------- | ------- |
-| `netdrill_pod_create` | — | `podName`, `nodeSelector`, `serviceAccount`, `env`, `ports`, `hostNetwork`, `namespace`, `ticketId` | Persistent troubleshooting pod |
+| `netdrill_pod_create` | — | `podName`, `nodeSelector`, `serviceAccount`, `env`, `ports`, `hostNetwork`, `labels`, `namespace`, `ticketId` | Persistent troubleshooting pod |
 | `netdrill_pod_delete` | `podName` | `namespace`, `ticketId` | Delete an authorized pod |
 | `netdrill_pod_wait` | `podName` | `namespace`, `ticketId` | Wait until pod is Running |
 | `netdrill_pod_exec` | `podName`, `command` | `containerName`, `namespace`, `ticketId` | Run command; return stdout/stderr. With `--mirror-exec-to-logs`, also mirrors argv+output into the container's `kubectl logs` (PID 1 stdout, best-effort) |

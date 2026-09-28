@@ -20,8 +20,6 @@ var (
 	CPULimit string
 	// MemoryLimit is the memory resource limit.
 	MemoryLimit string
-	// Labels are additional labels for the deployment.
-	Labels map[string]string
 )
 
 var deploymentCmd = &cobra.Command{

@@ -337,6 +337,63 @@ func TestCreatePodWithEnvVars(t *testing.T) {
 	}
 }
 
+func TestCreatePodWithLabels(t *testing.T) {
+	ctx := context.Background()
+	client := fake.NewSimpleClientset()
+
+	opts := PodOptions{
+		Namespace: "default",
+		PodName:   "test-pod-labels",
+		Image:     "netdrill:latest",
+		Owner:     "alice",
+		Ticket:    "INC-123",
+		Labels: map[string]string{
+			"env":                 "staging",
+			"team":                "sre",
+			netdrill.LabelManaged: "false", // Attempt to override protected label
+			netdrill.LabelOwner:   "mallory",
+			netdrill.LabelTicket:  "FAKE-000",
+		},
+	}
+
+	pod, err := CreatePod(ctx, client, opts)
+	require.NoError(t, err)
+	require.NotNil(t, pod)
+
+	assert.Equal(t, "staging", pod.Labels["env"])
+	assert.Equal(t, "sre", pod.Labels["team"])
+	assert.Equal(t, netdrill.LabelManagedValue, pod.Labels[netdrill.LabelManaged])
+	assert.Equal(t, "alice", pod.Labels[netdrill.LabelOwner])
+	assert.Equal(t, "INC-123", pod.Labels[netdrill.LabelTicket])
+	assert.Equal(t, netdrill.LabelAppValue, pod.Labels[netdrill.LabelApp])
+}
+
+func TestCreatePodWithLabels_ReservedLabelsStrippedWhenAbsent(t *testing.T) {
+	ctx := context.Background()
+	client := fake.NewSimpleClientset()
+
+	opts := PodOptions{
+		Namespace: "default",
+		PodName:   "test-pod-reserved",
+		Image:     "netdrill:latest",
+		Labels: map[string]string{
+			"env":                "prod",
+			netdrill.LabelOwner:  "injected-owner",
+			netdrill.LabelTicket: "injected-ticket",
+		},
+	}
+
+	pod, err := CreatePod(ctx, client, opts)
+	require.NoError(t, err)
+	require.NotNil(t, pod)
+
+	assert.Equal(t, "prod", pod.Labels["env"])
+	assert.NotContains(t, pod.Labels, netdrill.LabelOwner)
+	assert.NotContains(t, pod.Labels, netdrill.LabelTicket)
+	assert.Equal(t, netdrill.LabelManagedValue, pod.Labels[netdrill.LabelManaged])
+	assert.Equal(t, netdrill.LabelAppValue, pod.Labels[netdrill.LabelApp])
+}
+
 func TestWaitForPodReady(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()

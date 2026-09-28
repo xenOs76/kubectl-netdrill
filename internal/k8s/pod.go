@@ -3,6 +3,7 @@ package k8s
 import (
 	"context"
 	"fmt"
+	"maps"
 	"net/url"
 	"os"
 	"path"
@@ -66,6 +67,34 @@ type PodOptions struct {
 	Owner string
 	// Ticket stamps the kubectl-netdrill.io/ticket label when non-empty.
 	Ticket string
+	// Labels are extra labels merged onto the pod.
+	Labels map[string]string
+}
+
+// podLabels builds pod labels by merging opts.Labels onto standard labels,
+// ensuring protected netdrill labels remain intact.
+func podLabels(opts PodOptions) map[string]string {
+	protected := netdrill.PodLabels(opts.Owner, opts.Ticket)
+
+	labels := maps.Clone(protected)
+	for k, v := range opts.Labels {
+		labels[k] = v
+	}
+
+	labels[netdrill.LabelManaged] = protected[netdrill.LabelManaged]
+	if v, ok := protected[netdrill.LabelOwner]; ok {
+		labels[netdrill.LabelOwner] = v
+	} else {
+		delete(labels, netdrill.LabelOwner)
+	}
+
+	if v, ok := protected[netdrill.LabelTicket]; ok {
+		labels[netdrill.LabelTicket] = v
+	} else {
+		delete(labels, netdrill.LabelTicket)
+	}
+
+	return labels
 }
 
 // CreatePod creates a new Pod with the specified options.
@@ -74,7 +103,7 @@ func CreatePod(ctx context.Context, client kubernetes.Interface, opts PodOptions
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      opts.PodName,
 			Namespace: opts.Namespace,
-			Labels:    netdrill.PodLabels(opts.Owner, opts.Ticket),
+			Labels:    podLabels(opts),
 		},
 		Spec: corev1.PodSpec{
 			Containers: []corev1.Container{
@@ -122,6 +151,7 @@ func ensureEKSToken(spec *corev1.PodSpec) {
 	addEKSTokenVolume(spec, tokenPath)
 }
 
+// getEKSTokenConfig extracts EKS IRSA token file path and checks if an IAM role ARN is present in container env vars.
 func getEKSTokenConfig(spec *corev1.PodSpec) (string, bool) {
 	var tokenPath string
 
@@ -140,6 +170,7 @@ func getEKSTokenConfig(spec *corev1.PodSpec) (string, bool) {
 	return tokenPath, hasRole
 }
 
+// addEKSTokenVolume attaches a projected ServiceAccount token volume and mount for AWS IRSA to the pod spec.
 func addEKSTokenVolume(spec *corev1.PodSpec, tokenPath string) {
 	volumeName := "aws-iam-token"
 	volumeExists := false

@@ -23,6 +23,7 @@ func TestPodOptionsFromConfig(t *testing.T) {
 		EnvVars:        map[string]string{"K": "V"},
 		Owner:          "alice",
 		Ticket:         "INC-1",
+		Labels:         map[string]string{"env": "test"},
 	}
 
 	opts := PodOptionsFromConfig(cfg)
@@ -34,6 +35,7 @@ func TestPodOptionsFromConfig(t *testing.T) {
 	assert.Equal(t, "sa", opts.ServiceAccount)
 	assert.Equal(t, "alice", opts.Owner)
 	assert.Equal(t, "INC-1", opts.Ticket)
+	assert.Equal(t, map[string]string{"env": "test"}, opts.Labels)
 	assert.Equal(t, []string{"/bin/bash", "-c", "--"}, opts.Command)
 	assert.Equal(t, []string{"while true; do sleep 30; done;"}, opts.Args)
 

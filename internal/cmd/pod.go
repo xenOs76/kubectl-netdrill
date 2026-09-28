@@ -41,6 +41,7 @@ var podCmd = &cobra.Command{
 			ServiceAccount: ServiceAccount,
 			Ports:          Ports,
 			EnvVars:        EnvVars,
+			Labels:         Labels,
 		})
 
 		fmt.Printf("Creating pod %s in namespace %s...\n", podName, namespace)
@@ -70,4 +71,6 @@ func init() {
 	podCmd.Flags().BoolVar(&HostNetwork, "host-network", false, "Use host networking")
 	podCmd.Flags().StringToStringVar(&NodeSelector, "node-selector", map[string]string{},
 		"node labels to use as a node selector for scheduling the netdrill pod (e.g. kubernetes.io/os=linux)")
+	podCmd.Flags().StringToStringVar(&Labels, "labels", map[string]string{},
+		"Additional labels (e.g. key1=val1,key2=val2)")
 }

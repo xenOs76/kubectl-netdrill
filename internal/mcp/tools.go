@@ -15,11 +15,13 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 )
 
+// namespaceInput specifies the target namespace and optional ticket authorization.
 type namespaceInput struct {
 	Namespace string `json:"namespace,omitempty" jsonschema:"Kubernetes namespace (defaults to MCP -n flag)"`
 	TicketID  string `json:"ticketId,omitempty" jsonschema:"Ticket ID for delete/exec when pod is ticket-tagged"`
 }
 
+// podCreateInput specifies parameters for creating a troubleshooting pod.
 type podCreateInput struct {
 	namespaceInput
 	PodName string `json:"podName,omitempty" jsonschema:"Pod name (default netdrill)"`
@@ -33,24 +35,30 @@ type podCreateInput struct {
 	Ports []int32 `json:"ports,omitempty" jsonschema:"Container ports to expose"`
 	// Use the host network namespace.
 	HostNetwork bool `json:"hostNetwork,omitempty" jsonschema:"Use host networking"`
+	// Additional labels on the pod.
+	Labels map[string]string `json:"labels,omitempty" jsonschema:"Additional labels"`
 }
 
+// podNameInput specifies a pod by name and namespace.
 type podNameInput struct {
 	namespaceInput
 	PodName string `json:"podName" jsonschema:"Pod name"`
 }
 
+// podExecInput specifies command execution parameters in a pod container.
 type podExecInput struct {
 	podNameInput
 	Command       []string `json:"command" jsonschema:"Command and arguments to run in the container"`
 	ContainerName string   `json:"containerName,omitempty" jsonschema:"Container name (default netdrill)"`
 }
 
+// runCreateInput specifies parameters for running an ephemeral pod.
 type runCreateInput struct {
 	podCreateInput
 	Command []string `json:"command,omitempty" jsonschema:"Optional one-shot command instead of sleep loop"`
 }
 
+// deploymentCreateInput specifies parameters for creating a troubleshooting deployment.
 type deploymentCreateInput struct {
 	namespaceInput
 	Name string `json:"name,omitempty" jsonschema:"Deployment name (default netdrill)"`
@@ -74,20 +82,24 @@ type deploymentCreateInput struct {
 	MemoryLimit   string            `json:"memoryLimit,omitempty" jsonschema:"Memory limit (e.g. 256Mi)"`
 }
 
+// deploymentNameInput specifies a deployment by name and namespace.
 type deploymentNameInput struct {
 	namespaceInput
 	Name string `json:"name" jsonschema:"Deployment name"`
 }
 
+// debugAddInput specifies parameters for attaching an ephemeral debug container.
 type debugAddInput struct {
 	podNameInput
 	TargetContainer string `json:"targetContainer,omitempty" jsonschema:"Container to share process namespace with"`
 }
 
+// listPodsInput specifies filtering options when listing managed pods.
 type listPodsInput struct {
 	namespaceInput
 }
 
+// podCreateOutput contains details of a created pod or deployment.
 type podCreateOutput struct {
 	Namespace string `json:"namespace"`
 	PodName   string `json:"podName"`
@@ -95,6 +107,7 @@ type podCreateOutput struct {
 	Ticket    string `json:"ticket,omitempty"`
 }
 
+// podExecOutput contains standard output, standard error, and exit status from execution.
 type podExecOutput struct {
 	Stdout    string `json:"stdout"`
 	Stderr    string `json:"stderr"`
@@ -102,6 +115,7 @@ type podExecOutput struct {
 	Truncated bool   `json:"truncated,omitempty"`
 }
 
+// listPodEntry represents a single pod in list output.
 type listPodEntry struct {
 	Name      string `json:"name"`
 	Owner     string `json:"owner"`
@@ -110,15 +124,18 @@ type listPodEntry struct {
 	Namespace string `json:"namespace"`
 }
 
+// listPodsOutput contains the list of managed pods.
 type listPodsOutput struct {
 	Pods []listPodEntry `json:"pods"`
 }
 
+// registerTools registers all pod and deployment MCP tools with the server.
 func registerTools(server *mcp.Server, deps *Deps) {
 	registerPodTools(server, deps)
 	registerDeploymentTools(server, deps)
 }
 
+// registerPodTools registers pod creation, deletion, wait, and exec MCP tools.
 func registerPodTools(server *mcp.Server, deps *Deps) {
 	mcp.AddTool(server, &mcp.Tool{
 		Name: "netdrill_pod_create",
@@ -197,6 +214,7 @@ func registerPodTools(server *mcp.Server, deps *Deps) {
 	})
 }
 
+// registerDeploymentTools registers deployment creation and deletion MCP tools.
 func registerDeploymentTools(server *mcp.Server, deps *Deps) {
 	mcp.AddTool(server, &mcp.Tool{
 		Name: "netdrill_deployment_create",
@@ -217,6 +235,7 @@ func registerDeploymentTools(server *mcp.Server, deps *Deps) {
 	})
 }
 
+// resolveNamespace returns ns if non-empty, otherwise falls back to the default namespace.
 func resolveNamespace(deps *Deps, ns string) string {
 	if ns != "" {
 		return ns
@@ -225,6 +244,7 @@ func resolveNamespace(deps *Deps, ns string) string {
 	return deps.Cfg.DefaultNamespace
 }
 
+// defaultPodName returns name if non-empty, otherwise defaults to "netdrill".
 func defaultPodName(name string) string {
 	if name != "" {
 		return name
@@ -233,6 +253,7 @@ func defaultPodName(name string) string {
 	return "netdrill"
 }
 
+// podConfigFromCreateInput converts MCP pod creation input into a netdrill.PodConfig.
 func podConfigFromCreateInput(deps *Deps, in podCreateInput, ns, podName string) netdrill.PodConfig {
 	return netdrill.PodConfig{
 		Namespace:      ns,
@@ -245,9 +266,11 @@ func podConfigFromCreateInput(deps *Deps, in podCreateInput, ns, podName string)
 		EnvVars:        maps.Clone(in.Env),
 		Ports:          slices.Clone(in.Ports),
 		HostNetwork:    in.HostNetwork,
+		Labels:         maps.Clone(in.Labels),
 	}
 }
 
+// getAuthorizedPod retrieves a pod by namespace and name, validating ownership and ticket access.
 func (deps *Deps) getAuthorizedPod(
 	ctx context.Context,
 	ns, podName, ticketID string,
@@ -264,6 +287,7 @@ func (deps *Deps) getAuthorizedPod(
 	return pod, nil
 }
 
+// handlePodCreate handles the netdrill_pod_create tool invocation.
 func handlePodCreate(ctx context.Context, deps *Deps, in podCreateInput) (*mcp.CallToolResult, podCreateOutput, error) {
 	ns := resolveNamespace(deps, in.Namespace)
 	podName := defaultPodName(in.PodName)
@@ -286,6 +310,7 @@ func handlePodCreate(ctx context.Context, deps *Deps, in podCreateInput) (*mcp.C
 	return nil, out, nil
 }
 
+// handleRunCreate handles the netdrill_run_create tool invocation.
 func handleRunCreate(ctx context.Context, deps *Deps, in runCreateInput) (*mcp.CallToolResult, podCreateOutput, error) {
 	ns := resolveNamespace(deps, in.Namespace)
 	podName := defaultPodName(in.PodName)
@@ -313,6 +338,7 @@ func handleRunCreate(ctx context.Context, deps *Deps, in runCreateInput) (*mcp.C
 	return nil, out, nil
 }
 
+// handlePodDelete handles the netdrill_pod_delete and netdrill_run_cleanup tool invocations.
 func handlePodDelete(ctx context.Context, deps *Deps, in podNameInput) (*mcp.CallToolResult, any, error) {
 	ns := resolveNamespace(deps, in.Namespace)
 	podName := in.PodName
@@ -332,6 +358,7 @@ func handlePodDelete(ctx context.Context, deps *Deps, in podNameInput) (*mcp.Cal
 	return nil, map[string]string{"status": "deleted", "pod_name": podName, "namespace": ns}, nil
 }
 
+// handlePodWait handles the netdrill_pod_wait tool invocation.
 func handlePodWait(ctx context.Context, deps *Deps, in podNameInput) (*mcp.CallToolResult, any, error) {
 	ns := resolveNamespace(deps, in.Namespace)
 	podName := in.PodName
@@ -351,6 +378,7 @@ func handlePodWait(ctx context.Context, deps *Deps, in podNameInput) (*mcp.CallT
 	return nil, map[string]string{"status": "ready", "pod_name": podName, "namespace": ns}, nil
 }
 
+// handlePodExec handles the netdrill_pod_exec and netdrill_debug_exec tool invocations.
 func handlePodExec(ctx context.Context, deps *Deps, in podExecInput) (*mcp.CallToolResult, podExecOutput, error) {
 	ns := resolveNamespace(deps, in.Namespace)
 	podName := in.PodName
@@ -406,6 +434,7 @@ func handlePodExec(ctx context.Context, deps *Deps, in podExecInput) (*mcp.CallT
 	return nil, out, nil
 }
 
+// handleDeploymentCreate handles the netdrill_deployment_create tool invocation.
 func handleDeploymentCreate(
 	ctx context.Context,
 	deps *Deps,
@@ -458,6 +487,7 @@ func handleDeploymentCreate(
 	return nil, out, nil
 }
 
+// handleDeploymentDelete handles the netdrill_deployment_delete tool invocation.
 func handleDeploymentDelete(ctx context.Context, deps *Deps, in deploymentNameInput) (*mcp.CallToolResult, any, error) {
 	ns := resolveNamespace(deps, in.Namespace)
 	name := in.Name
@@ -482,6 +512,7 @@ func handleDeploymentDelete(ctx context.Context, deps *Deps, in deploymentNameIn
 	return nil, map[string]string{"status": "deleted", "name": name, "namespace": ns}, nil
 }
 
+// handleDebugAdd handles the netdrill_debug_add tool invocation.
 func handleDebugAdd(ctx context.Context, deps *Deps, in debugAddInput) (*mcp.CallToolResult, any, error) {
 	ns := resolveNamespace(deps, in.Namespace)
 	podName := in.PodName
@@ -518,6 +549,7 @@ func handleDebugAdd(ctx context.Context, deps *Deps, in debugAddInput) (*mcp.Cal
 	}, nil
 }
 
+// handleListPods handles the netdrill_list_managed_pods tool invocation.
 func handleListPods(ctx context.Context, deps *Deps, in listPodsInput) (*mcp.CallToolResult, listPodsOutput, error) {
 	ns := resolveNamespace(deps, in.Namespace)
 

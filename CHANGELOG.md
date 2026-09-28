@@ -1,3 +1,14 @@
+## 0.2.6 (2026-09-28)
+
+### Feat
+
+    add labels option to pod command and MCP create tools
+
+### Fix
+
+    initialize Labels as writable map on reset to prevent panic on subsequent executions
+    strip reserved owner/ticket labels when absent from standard protected labels
+
 ## 0.2.5 (2026-07-23)
 
 ### CI

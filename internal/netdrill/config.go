@@ -26,6 +26,8 @@ type PodConfig struct {
 	Owner string
 	// Ticket stamps the kubectl-netdrill.io/ticket label when non-empty.
 	Ticket string
+	// Labels are extra labels merged onto the pod.
+	Labels map[string]string
 }
 
 // DeploymentConfig holds inputs for building a troubleshooting deployment.
