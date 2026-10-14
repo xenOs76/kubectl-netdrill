@@ -73,4 +73,7 @@ func init() {
 		"node labels to use as a node selector for scheduling the netdrill pod (e.g. kubernetes.io/os=linux)")
 	podCmd.Flags().StringToStringVar(&Labels, "labels", map[string]string{},
 		"Additional labels (e.g. key1=val1,key2=val2)")
+
+	_ = podCmd.RegisterFlagCompletionFunc("node-selector", completeNodeSelector)
+	_ = podCmd.RegisterFlagCompletionFunc("service-account", completeServiceAccount)
 }

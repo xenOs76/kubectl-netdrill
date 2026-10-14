@@ -109,4 +109,6 @@ func init() {
 	runCmd.Flags().BoolVar(&HostNetwork, "host-network", false, "Use host networking")
 	runCmd.Flags().StringToStringVar(&NodeSelector, "node-selector", map[string]string{},
 		"node labels to use as a node selector for scheduling the netdrill pod (e.g. kubernetes.io/os=linux)")
+
+	_ = runCmd.RegisterFlagCompletionFunc("node-selector", completeNodeSelector)
 }

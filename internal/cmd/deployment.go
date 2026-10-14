@@ -103,4 +103,7 @@ func init() {
 	deploymentCmd.Flags().BoolVar(&HostNetwork, "host-network", false, "Use host networking")
 	deploymentCmd.Flags().StringToStringVar(&NodeSelector, "node-selector", map[string]string{},
 		"node labels to use as a node selector for scheduling the netdrill pod (e.g. kubernetes.io/os=linux)")
+
+	_ = deploymentCmd.RegisterFlagCompletionFunc("node-selector", completeNodeSelector)
+	_ = deploymentCmd.RegisterFlagCompletionFunc("service-account", completeServiceAccount)
 }
