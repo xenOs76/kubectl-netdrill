@@ -72,10 +72,11 @@ func mirrorExecToContainerLog(
 		"_", encoded,
 	}
 
-	if _, err := k8s.ExecCommand(
+	_, err := k8s.ExecCommand(
 		mirrorCtx, deps.Client, deps.Config, ns, podName, container,
 		mirrorCmd, deps.Guard.MaxOutput,
-	); err != nil {
+	)
+	if err != nil {
 		slog.Warn("failed to mirror exec to container logs",
 			"namespace", ns, "pod", podName, "container", container, "err", err)
 	}

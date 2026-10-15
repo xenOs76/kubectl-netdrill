@@ -233,3 +233,7 @@ complete -c kubectl-netdrill -n '__kubectl_netdrill_clear_perform_completion_onc
 complete -c kubectl-netdrill -n 'not __kubectl_netdrill_requires_order_preservation && __kubectl_netdrill_prepare_completions' -f -a '$__kubectl_netdrill_comp_results'
 # otherwise we use the -k flag
 complete -k -c kubectl-netdrill -n '__kubectl_netdrill_requires_order_preservation && __kubectl_netdrill_prepare_completions' -f -a '$__kubectl_netdrill_comp_results'
+
+complete -c ./dist/kubectl-netdrill -w kubectl-netdrill
+complete -c dist/kubectl-netdrill -w kubectl-netdrill
+complete -c knetdrill -w kubectl-netdrill

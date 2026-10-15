@@ -57,4 +57,5 @@ func init() {
 	)
 
 	rootCmd.AddCommand(completionCmd)
+	_ = rootCmd.RegisterFlagCompletionFunc("namespace", completeNamespace)
 }

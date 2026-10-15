@@ -181,7 +181,7 @@ kubectl netdrill run my-troubleshooter
 | ----------------- | ----- | -------------------------------------------------------------- | --------------------------------- |
 | `--host-network`  |       | Use the host's network namespace                               | `false`                           |
 | `--command`       |       | Command to run in the container                                | shell (interactive)               |
-| `--node-selector` |       | Node labels for pod scheduling (e.g. `kubernetes.io/os=linux`) |                                   |
+| `--node-selector` |       | Node labels for pod scheduling (can be used multiple times)    |                                   |
 | `--image`         | `-i`  | Container image to use                                         | `ghcr.io/xenos76/netdrill:latest` |
 
 #### Examples
@@ -233,12 +233,12 @@ kubectl netdrill pod my-persistent-troubleshooter
 
 | Flag                | Short | Description                                          | Default                           |
 | ------------------- | ----- | ---------------------------------------------------- | --------------------------------- |
-| `--labels`          |       | Additional labels (e.g. `key=val`)                   |                                   |
+| `--labels`          |       | Additional labels (e.g. `key=val`; can be used multiple times) |                                   |
 | `--service-account` |       | ServiceAccount to use for the pod                    |                                   |
-| `--port`            |       | Ports to expose on the container (e.g., `--port 80`) |                                   |
-| `--env`             |       | Environment variables (e.g., `--env KEY=VALUE`)      |                                   |
+| `--port`            |       | Ports to expose on the container (e.g. `80`; can be used multiple times) |                 |
+| `--env`             |       | Environment variables (e.g. `KEY=VALUE`; can be used multiple times) |                      |
 | `--host-network`    |       | Use the host's network namespace                     | `false`                           |
-| `--node-selector`   |       | Node labels for pod scheduling                       |                                   |
+| `--node-selector`   |       | Node labels for pod scheduling (can be used multiple times)  |                                   |
 | `--image`           | `-i`  | Container image to use                               | `ghcr.io/xenos76/netdrill:latest` |
 
 #### Examples
@@ -311,12 +311,12 @@ kubectl netdrill deployment my-deployment
 | `--memory-request`  |       | Memory request (e.g. `128Mi`)                        |                                   |
 | `--cpu-limit`       |       | CPU limit (e.g. `200m`)                              |                                   |
 | `--memory-limit`    |       | Memory limit (e.g. `256Mi`)                          |                                   |
-| `--labels`          |       | Additional labels (e.g. `key=val`)                   |                                   |
+| `--labels`          |       | Additional labels (e.g. `key=val`; can be used multiple times) |                                   |
 | `--service-account` |       | ServiceAccount to use for the deployment             |                                   |
-| `--port`            |       | Ports to expose on the container (e.g., `--port 80`) |                                   |
-| `--env`             |       | Environment variables (e.g., `--env KEY=VALUE`)      |                                   |
+| `--port`            |       | Ports to expose on the container (e.g. `80`; can be used multiple times) |                 |
+| `--env`             |       | Environment variables (e.g. `KEY=VALUE`; can be used multiple times) |                      |
 | `--host-network`    |       | Use the host's network namespace                     | `false`                           |
-| `--node-selector`   |       | Node labels for pod scheduling                       |                                   |
+| `--node-selector`   |       | Node labels for pod scheduling (can be used multiple times)  |                                   |
 | `--image`           | `-i`  | Container image to use                               | `ghcr.io/xenos76/netdrill:latest` |
 
 #### Examples

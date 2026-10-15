@@ -65,12 +65,18 @@ func init() {
 	podCmd.Flags().StringVar(&ServiceAccount, "service-account", "",
 		"ServiceAccount to use for the pod")
 	podCmd.Flags().Int32SliceVar(&Ports, "port", []int32{},
-		"Ports to expose on the container (e.g., --port 80)")
+		"Ports to expose on the container (e.g., --port 80; can be used multiple times)")
 	podCmd.Flags().StringToStringVar(&EnvVars, "env", map[string]string{},
-		"Environment variables (e.g., --env KEY=VALUE)")
+		"Environment variables (e.g., --env KEY=VALUE; can be used multiple times)")
 	podCmd.Flags().BoolVar(&HostNetwork, "host-network", false, "Use host networking")
 	podCmd.Flags().StringToStringVar(&NodeSelector, "node-selector", map[string]string{},
-		"node labels to use as a node selector for scheduling the netdrill pod (e.g. kubernetes.io/os=linux)")
+		"node labels to use as a node selector for scheduling the netdrill pod "+
+			"(e.g. kubernetes.io/os=linux; can be used multiple times)")
 	podCmd.Flags().StringToStringVar(&Labels, "labels", map[string]string{},
-		"Additional labels (e.g. key1=val1,key2=val2)")
+		"Additional labels (e.g. key1=val1,key2=val2; can be used multiple times)")
+
+	_ = podCmd.RegisterFlagCompletionFunc("node-selector", completeNodeSelector)
+	_ = podCmd.RegisterFlagCompletionFunc("service-account", completeServiceAccount)
+	_ = podCmd.RegisterFlagCompletionFunc("labels", completeLabels)
+	_ = podCmd.RegisterFlagCompletionFunc("port", completePort)
 }
