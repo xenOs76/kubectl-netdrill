@@ -235,8 +235,8 @@ kubectl netdrill pod my-persistent-troubleshooter
 | ------------------- | ----- | ---------------------------------------------------- | --------------------------------- |
 | `--labels`          |       | Additional labels (e.g. `key=val`; can be used multiple times) |                                   |
 | `--service-account` |       | ServiceAccount to use for the pod                    |                                   |
-| `--port`            |       | Ports to expose on the container (e.g., `--port 80; can be used multiple times`) |                 |
-| `--env`             |       | Environment variables (e.g., `--env KEY=VALUE; can be used multiple times`) |                      |
+| `--port`            |       | Ports to expose on the container (e.g. `80`; can be used multiple times) |                 |
+| `--env`             |       | Environment variables (e.g. `KEY=VALUE`; can be used multiple times) |                      |
 | `--host-network`    |       | Use the host's network namespace                     | `false`                           |
 | `--node-selector`   |       | Node labels for pod scheduling (can be used multiple times)  |                                   |
 | `--image`           | `-i`  | Container image to use                               | `ghcr.io/xenos76/netdrill:latest` |
@@ -313,8 +313,8 @@ kubectl netdrill deployment my-deployment
 | `--memory-limit`    |       | Memory limit (e.g. `256Mi`)                          |                                   |
 | `--labels`          |       | Additional labels (e.g. `key=val`; can be used multiple times) |                                   |
 | `--service-account` |       | ServiceAccount to use for the deployment             |                                   |
-| `--port`            |       | Ports to expose on the container (e.g., `--port 80; can be used multiple times`) |                 |
-| `--env`             |       | Environment variables (e.g., `--env KEY=VALUE; can be used multiple times`) |                      |
+| `--port`            |       | Ports to expose on the container (e.g. `80`; can be used multiple times) |                 |
+| `--env`             |       | Environment variables (e.g. `KEY=VALUE`; can be used multiple times) |                      |
 | `--host-network`    |       | Use the host's network namespace                     | `false`                           |
 | `--node-selector`   |       | Node labels for pod scheduling (can be used multiple times)  |                                   |
 | `--image`           | `-i`  | Container image to use                               | `ghcr.io/xenos76/netdrill:latest` |

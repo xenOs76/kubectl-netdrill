@@ -12,10 +12,12 @@
 
     upgrade bash completion to V2 to resolve token repetition on flags containing '='
     stop node-selector autocompletion on comma to prevent shell Readline recursion
+    add missing dist/kubectl-netdrill alias wrapper to fish completion
 
 ### Docs
 
     clarify that node-selector, labels, env, and port flags can be specified multiple times
+    fix code span formatting for port and env in options tables
 
 ### CI
 

@@ -78,6 +78,7 @@ fi`)
 			}
 
 			fmt.Println("\ncomplete -c ./dist/kubectl-netdrill -w kubectl-netdrill\n" +
+				"complete -c dist/kubectl-netdrill -w kubectl-netdrill\n" +
 				"complete -c knetdrill -w kubectl-netdrill")
 		case "powershell":
 			return cmd.Root().GenPowerShellCompletionWithDesc(os.Stdout)
