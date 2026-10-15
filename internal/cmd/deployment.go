@@ -92,18 +92,26 @@ func init() {
 	deploymentCmd.Flags().StringVar(&CPULimit, "cpu-limit", "", "CPU limit (e.g. 200m)")
 	deploymentCmd.Flags().StringVar(&MemoryLimit, "memory-limit", "", "Memory limit (e.g. 256Mi)")
 	deploymentCmd.Flags().StringToStringVar(&Labels, "labels", map[string]string{},
-		"Additional labels (e.g. key1=val1,key2=val2)")
+		"Additional labels (e.g. key1=val1,key2=val2; can be used multiple times)")
 
 	deploymentCmd.Flags().StringVar(&ServiceAccount, "service-account", "",
 		"ServiceAccount to use for the deployment")
 	deploymentCmd.Flags().Int32SliceVar(&Ports, "port", []int32{},
-		"Ports to expose on the container (e.g., --port 80)")
+		"Ports to expose on the container (e.g., --port 80; can be used multiple times)")
 	deploymentCmd.Flags().StringToStringVar(&EnvVars, "env", map[string]string{},
-		"Environment variables (e.g., --env KEY=VALUE)")
+		"Environment variables (e.g., --env KEY=VALUE; can be used multiple times)")
 	deploymentCmd.Flags().BoolVar(&HostNetwork, "host-network", false, "Use host networking")
 	deploymentCmd.Flags().StringToStringVar(&NodeSelector, "node-selector", map[string]string{},
-		"node labels to use as a node selector for scheduling the netdrill pod (e.g. kubernetes.io/os=linux)")
+		"node labels to use as a node selector for scheduling the netdrill pod "+
+			"(e.g. kubernetes.io/os=linux; can be used multiple times)")
 
 	_ = deploymentCmd.RegisterFlagCompletionFunc("node-selector", completeNodeSelector)
 	_ = deploymentCmd.RegisterFlagCompletionFunc("service-account", completeServiceAccount)
+	_ = deploymentCmd.RegisterFlagCompletionFunc("replicas", completeReplicas)
+	_ = deploymentCmd.RegisterFlagCompletionFunc("cpu-request", completeCPU)
+	_ = deploymentCmd.RegisterFlagCompletionFunc("cpu-limit", completeCPU)
+	_ = deploymentCmd.RegisterFlagCompletionFunc("memory-request", completeMemory)
+	_ = deploymentCmd.RegisterFlagCompletionFunc("memory-limit", completeMemory)
+	_ = deploymentCmd.RegisterFlagCompletionFunc("labels", completeLabels)
+	_ = deploymentCmd.RegisterFlagCompletionFunc("port", completePort)
 }

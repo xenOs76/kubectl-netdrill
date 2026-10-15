@@ -98,10 +98,11 @@ func TestCompleteNodeSelector(t *testing.T) {
 	}
 
 	tests := []struct {
-		name         string
-		toComplete   string
-		wantDirect   cobra.ShellCompDirective
-		wantContains []string
+		name            string
+		toComplete      string
+		wantDirect      cobra.ShellCompDirective
+		wantContains    []string
+		wantNotContains []string
 	}{
 		{
 			name:         "empty token proposes all pairs",
@@ -119,22 +120,13 @@ func TestCompleteNodeSelector(t *testing.T) {
 			name:         "value completion after equals",
 			toComplete:   "topology/zone=",
 			wantDirect:   cobra.ShellCompDirectiveNoSpace | cobra.ShellCompDirectiveNoFileComp,
-			wantContains: []string{"zone-a", "zone-b"},
+			wantContains: []string{"topology/zone=zone-a", "topology/zone=zone-b"},
 		},
 		{
 			name:         "partial value completion",
 			toComplete:   "topology/zone=zone-a",
 			wantDirect:   cobra.ShellCompDirectiveNoSpace | cobra.ShellCompDirectiveNoFileComp,
-			wantContains: []string{"zone-a"},
-		},
-		{
-			name:       "comma-separated chaining",
-			toComplete: "kubernetes.io/os=linux,top",
-			wantDirect: cobra.ShellCompDirectiveDefault,
-			wantContains: []string{
-				"kubernetes.io/os=linux,topology/zone=zone-a",
-				"kubernetes.io/os=linux,topology/zone=zone-b",
-			},
+			wantContains: []string{"topology/zone=zone-a"},
 		},
 	}
 
@@ -148,6 +140,61 @@ func TestCompleteNodeSelector(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestCompleteNodeSelector_Comma verifies that autocompletion stops immediately on a comma
+// to prevent shell Readline recursion.
+func TestCompleteNodeSelector_Comma(t *testing.T) {
+	tests := []struct {
+		name       string
+		toComplete string
+	}{
+		{
+			name:       "trailing comma",
+			toComplete: "kubernetes.io/os=linux,",
+		},
+		{
+			name:       "comma with prefix",
+			toComplete: "kubernetes.io/os=linux,top",
+		},
+		{
+			name:       "second comma",
+			toComplete: "kubernetes.io/os=linux,topology/zone=zone-a,",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, dir := completeNodeSelector(nil, nil, tt.toComplete)
+			require.Equal(t, cobra.ShellCompDirectiveNoFileComp, dir)
+			require.Empty(t, got)
+		})
+	}
+}
+
+// TestCompleteNodeSelector_RepeatedFlag verifies that already-configured node-selector keys
+// on the command are excluded from autocompletion proposals.
+func TestCompleteNodeSelector_RepeatedFlag(t *testing.T) {
+	origProvider := k8s.ClientProvider
+	defer func() {
+		k8s.ClientProvider = origProvider
+	}()
+
+	fakeClient := newTestNodeClient()
+	k8s.ClientProvider = func(_ *genericclioptions.ConfigFlags) (kubernetes.Interface, *rest.Config, error) {
+		return fakeClient, &rest.Config{}, nil
+	}
+
+	var nsMap map[string]string
+
+	cmd := &cobra.Command{}
+	cmd.Flags().StringToStringVar(&nsMap, "node-selector", map[string]string{"kubernetes.io/os": "linux"}, "")
+
+	got, dir := completeNodeSelector(cmd, nil, "")
+	require.Equal(t, cobra.ShellCompDirectiveDefault, dir)
+	require.NotContains(t, got, "kubernetes.io/os=linux")
+	require.Contains(t, got, "topology/zone=zone-a")
+	require.Contains(t, got, "topology/zone=zone-b")
 }
 
 // TestCompleteNodeSelector_Error verifies that completeNodeSelector gracefully returns
@@ -386,4 +433,94 @@ func TestCompleteNamespace_Error(t *testing.T) {
 	got, dir := completeNamespace(nil, nil, "")
 	require.Nil(t, got)
 	require.Equal(t, cobra.ShellCompDirectiveError, dir)
+}
+
+// TestCompleteReplicas verifies autocompletion suggestions for --replicas.
+func TestCompleteReplicas(t *testing.T) {
+	got, dir := completeReplicas(nil, nil, "")
+	require.Equal(t, cobra.ShellCompDirectiveNoFileComp, dir)
+	require.Contains(t, got, "1")
+	require.Contains(t, got, "3")
+
+	filtered, _ := completeReplicas(nil, nil, "1")
+	require.Contains(t, filtered, "1")
+	require.Contains(t, filtered, "10")
+	require.NotContains(t, filtered, "2")
+}
+
+// TestCompleteCPU verifies autocompletion suggestions for CPU flags.
+func TestCompleteCPU(t *testing.T) {
+	got, dir := completeCPU(nil, nil, "")
+	require.Equal(t, cobra.ShellCompDirectiveNoFileComp, dir)
+	require.Contains(t, got, "100m")
+	require.Contains(t, got, "500m")
+	require.Contains(t, got, "1")
+
+	filtered, _ := completeCPU(nil, nil, "2")
+	require.Contains(t, filtered, "200m")
+	require.Contains(t, filtered, "2")
+	require.NotContains(t, filtered, "100m")
+}
+
+// TestCompleteMemory verifies autocompletion suggestions for memory flags.
+func TestCompleteMemory(t *testing.T) {
+	got, dir := completeMemory(nil, nil, "")
+	require.Equal(t, cobra.ShellCompDirectiveNoFileComp, dir)
+	require.Contains(t, got, "128Mi")
+	require.Contains(t, got, "1Gi")
+
+	filtered, _ := completeMemory(nil, nil, "2")
+	require.Contains(t, filtered, "256Mi")
+	require.Contains(t, filtered, "2Gi")
+	require.NotContains(t, filtered, "128Mi")
+}
+
+// TestCompletePort verifies autocompletion suggestions for --port.
+func TestCompletePort(t *testing.T) {
+	got, dir := completePort(nil, nil, "")
+	require.Equal(t, cobra.ShellCompDirectiveNoFileComp, dir)
+	require.Contains(t, got, "80")
+	require.Contains(t, got, "443")
+
+	filtered, _ := completePort(nil, nil, "80")
+	require.Contains(t, filtered, "80")
+	require.Contains(t, filtered, "8080")
+	require.NotContains(t, filtered, "443")
+}
+
+// TestCompleteLabels verifies autocompletion suggestions for --labels.
+func TestCompleteLabels(t *testing.T) {
+	t.Run("empty token proposes sample labels", func(t *testing.T) {
+		got, dir := completeLabels(nil, nil, "")
+		require.Equal(t, cobra.ShellCompDirectiveDefault, dir)
+		require.Contains(t, got, "app=netdrill")
+		require.Contains(t, got, "env=prod")
+	})
+
+	t.Run("value completion after equals uses NoSpace", func(t *testing.T) {
+		got, dir := completeLabels(nil, nil, "env=")
+		require.Equal(t, cobra.ShellCompDirectiveNoSpace|cobra.ShellCompDirectiveNoFileComp, dir)
+		require.Contains(t, got, "env=dev")
+		require.Contains(t, got, "env=prod")
+		require.Contains(t, got, "env=staging")
+		require.NotContains(t, got, "app=netdrill")
+	})
+
+	t.Run("stops completion on comma", func(t *testing.T) {
+		got, dir := completeLabels(nil, nil, "app=netdrill,")
+		require.Equal(t, cobra.ShellCompDirectiveNoFileComp, dir)
+		require.Empty(t, got)
+	})
+
+	t.Run("excludes keys already set on command", func(t *testing.T) {
+		var lblMap map[string]string
+
+		cmd := &cobra.Command{}
+		cmd.Flags().StringToStringVar(&lblMap, "labels", map[string]string{"app": "netdrill"}, "")
+
+		got, dir := completeLabels(cmd, nil, "")
+		require.Equal(t, cobra.ShellCompDirectiveDefault, dir)
+		require.NotContains(t, got, "app=netdrill")
+		require.Contains(t, got, "env=prod")
+	})
 }

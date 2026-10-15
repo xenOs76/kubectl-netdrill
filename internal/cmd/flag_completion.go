@@ -91,9 +91,29 @@ func FetchNodeLabels() (*NodeLabels, error) {
 	return sl, nil
 }
 
+// extractUsedKeys returns a set of label keys already specified in prior flag occurrences on cmd.
+func extractUsedKeys(cmd *cobra.Command) map[string]struct{} {
+	used := make(map[string]struct{})
+
+	if cmd != nil {
+		if existing, err := cmd.Flags().GetStringToString("node-selector"); err == nil {
+			for k := range existing {
+				used[k] = struct{}{}
+			}
+		}
+	}
+
+	return used
+}
+
 // completeNodeSelector provides shell autocompletion for the --node-selector flag.
 // It handles empty input proposals, label key filtering, and value completion after '='.
-func completeNodeSelector(_ *cobra.Command, _ []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+// To avoid Readline word-break recursive expansion in shells, completion stops after the first comma.
+func completeNodeSelector(cmd *cobra.Command, _ []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	if strings.Contains(toComplete, ",") {
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
 	nodeLabels, err := FetchNodeLabels()
 	if err != nil {
 		return nil, cobra.ShellCompDirectiveError
@@ -106,41 +126,24 @@ func completeNodeSelector(_ *cobra.Command, _ []string, toComplete string) ([]st
 
 	var suggestions []string
 
-	currentToken := toComplete
+	usedKeys := extractUsedKeys(cmd)
 
-	var prefix string
-
-	if idx := strings.LastIndex(toComplete, ","); idx != -1 {
-		prefix = toComplete[:idx+1]
-		currentToken = toComplete[idx+1:]
-	}
-
-	if strings.Contains(currentToken, "=") {
-		// User typed "key=partialVal". The shell splits on '=', so the active token
-		// being replaced by readline/zsh is just the part after '='.
-		keyPrefix := currentToken[:strings.Index(currentToken, "=")+1] // e.g. "gitea="
-
-		for _, pair := range allPairs {
-			if strings.HasPrefix(pair, currentToken) {
-				// Strip the "key=" prefix so only the value completes
-				valOnly := strings.TrimPrefix(pair, keyPrefix)
-				suggestions = append(suggestions, valOnly)
-			}
+	for _, pair := range allPairs {
+		key, _, _ := strings.Cut(pair, "=")
+		if _, alreadyUsed := usedKeys[key]; alreadyUsed {
+			continue
 		}
 
-		slices.Sort(suggestions)
-		// NoSpace allows appending comma or continuation without a trailing space
-		return suggestions, cobra.ShellCompDirectiveNoSpace | cobra.ShellCompDirectiveNoFileComp
-	}
-
-	// User is still typing the key (or empty token). Propose full "key=" or "key=value"
-	for _, pair := range allPairs {
-		if strings.HasPrefix(pair, currentToken) {
-			suggestions = append(suggestions, prefix+pair)
+		if strings.HasPrefix(pair, toComplete) {
+			suggestions = append(suggestions, pair)
 		}
 	}
 
 	slices.Sort(suggestions)
+
+	if strings.Contains(toComplete, "=") {
+		return suggestions, cobra.ShellCompDirectiveNoSpace | cobra.ShellCompDirectiveNoFileComp
+	}
 
 	return suggestions, cobra.ShellCompDirectiveDefault
 }
@@ -245,4 +248,89 @@ func completeNamespace(_ *cobra.Command, _ []string, toComplete string) ([]strin
 	slices.Sort(suggestions)
 
 	return suggestions, cobra.ShellCompDirectiveNoFileComp
+}
+
+// Sample values for static flag autocompletion.
+var (
+	sampleReplicas = []string{"1", "2", "3", "5", "10"}
+	sampleCPUs     = []string{"100m", "200m", "500m", "1", "2", "4"}
+	sampleMemories = []string{"64Mi", "128Mi", "256Mi", "512Mi", "1Gi", "2Gi", "4Gi"}
+	samplePorts    = []string{"80", "443", "8080", "8443"}
+	sampleLabels   = []string{
+		"app=netdrill",
+		"env=dev",
+		"env=prod",
+		"env=staging",
+		"team=sre",
+		"tier=tools",
+	}
+)
+
+func filterPrefix(candidates []string, toComplete string) []string {
+	var matches []string
+
+	for _, c := range candidates {
+		if strings.HasPrefix(c, toComplete) {
+			matches = append(matches, c)
+		}
+	}
+
+	return matches
+}
+
+// completeReplicas provides autocompletion suggestions for the --replicas flag.
+func completeReplicas(_ *cobra.Command, _ []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	return filterPrefix(sampleReplicas, toComplete), cobra.ShellCompDirectiveNoFileComp
+}
+
+// completeCPU provides autocompletion suggestions for CPU flags with millicores and core units.
+func completeCPU(_ *cobra.Command, _ []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	return filterPrefix(sampleCPUs, toComplete), cobra.ShellCompDirectiveNoFileComp
+}
+
+// completeMemory provides autocompletion suggestions for memory flags with Mi and Gi units.
+func completeMemory(_ *cobra.Command, _ []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	return filterPrefix(sampleMemories, toComplete), cobra.ShellCompDirectiveNoFileComp
+}
+
+// completePort provides autocompletion suggestions for the --port flag.
+func completePort(_ *cobra.Command, _ []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	return filterPrefix(samplePorts, toComplete), cobra.ShellCompDirectiveNoFileComp
+}
+
+// completeLabels provides autocompletion suggestions for the --labels flag.
+func completeLabels(cmd *cobra.Command, _ []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	if strings.Contains(toComplete, ",") {
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
+	var usedKeys map[string]struct{}
+
+	if cmd != nil {
+		if existing, err := cmd.Flags().GetStringToString("labels"); err == nil && len(existing) > 0 {
+			usedKeys = make(map[string]struct{}, len(existing))
+			for k := range existing {
+				usedKeys[k] = struct{}{}
+			}
+		}
+	}
+
+	var suggestions []string
+
+	for _, l := range sampleLabels {
+		key, _, _ := strings.Cut(l, "=")
+		if _, used := usedKeys[key]; used {
+			continue
+		}
+
+		if strings.HasPrefix(l, toComplete) {
+			suggestions = append(suggestions, l)
+		}
+	}
+
+	if strings.Contains(toComplete, "=") {
+		return suggestions, cobra.ShellCompDirectiveNoSpace | cobra.ShellCompDirectiveNoFileComp
+	}
+
+	return suggestions, cobra.ShellCompDirectiveDefault
 }

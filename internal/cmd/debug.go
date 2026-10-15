@@ -86,8 +86,9 @@ var debugCmd = &cobra.Command{
 			defer restore()
 		}
 
-		if err := k8s.AttachToEphemeralContainer(ctx, client, config,
-			namespace, podName, containerName, tsq); err != nil {
+		err = k8s.AttachToEphemeralContainer(ctx, client, config,
+			namespace, podName, containerName, tsq)
+		if err != nil {
 			return fmt.Errorf("attaching to ephemeral container: %w", err)
 		}
 

@@ -1,3 +1,31 @@
+## Unreleased
+
+### Feat
+
+    add dynamic shell completion for --node-selector flag across pod, deployment, and run commands
+    add dynamic shell completion for --service-account flag across pod and deployment commands
+    add dynamic shell completion for --namespace (-n) persistent flag across all commands
+    add static shell completion with sample values and units for replicas, cpu, memory, port, and labels flags
+    add native kubectl plugin autocompletion via kubectl_complete-netdrill executable
+
+### Fix
+
+    upgrade bash completion to V2 to resolve token repetition on flags containing '='
+    stop node-selector autocompletion on comma to prevent shell Readline recursion
+
+### Docs
+
+    clarify that node-selector, labels, env, and port flags can be specified multiple times
+
+### CI
+
+    bump Go version to 1.27.2 in codeChecks workflow
+    update golang.org/x/net to v0.60.0
+
+### Refactor
+
+    extract flag completion and node label aggregation into dedicated internal/cmd/flag_completion.go
+
 ## 0.2.6 (2026-09-28)
 
 ### Feat

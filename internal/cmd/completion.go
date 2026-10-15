@@ -55,13 +55,32 @@ PowerShell:
 	RunE: func(cmd *cobra.Command, args []string) error {
 		switch args[0] {
 		case "bash":
-			_ = cmd.Root().GenBashCompletionV2(os.Stdout, false)
+			if err := cmd.Root().GenBashCompletionV2(os.Stdout, false); err != nil {
+				return err
+			}
+
+			fmt.Println(`
+# Additional completion bindings for direct binary invocations and aliases
+if [[ $(type -t compopt) = "builtin" ]]; then
+    complete -o default -F __start_kubectl-netdrill ./dist/kubectl-netdrill dist/kubectl-netdrill knetdrill
+else
+    complete -o default -o nospace -F __start_kubectl-netdrill ./dist/kubectl-netdrill dist/kubectl-netdrill knetdrill
+fi`)
 		case "zsh":
-			_ = cmd.Root().GenZshCompletion(os.Stdout)
+			if err := cmd.Root().GenZshCompletion(os.Stdout); err != nil {
+				return err
+			}
+
+			fmt.Println("\ncompdef _kubectl-netdrill ./dist/kubectl-netdrill dist/kubectl-netdrill knetdrill")
 		case "fish":
-			_ = cmd.Root().GenFishCompletion(os.Stdout, true)
+			if err := cmd.Root().GenFishCompletion(os.Stdout, true); err != nil {
+				return err
+			}
+
+			fmt.Println("\ncomplete -c ./dist/kubectl-netdrill -w kubectl-netdrill\n" +
+				"complete -c knetdrill -w kubectl-netdrill")
 		case "powershell":
-			_ = cmd.Root().GenPowerShellCompletionWithDesc(os.Stdout)
+			return cmd.Root().GenPowerShellCompletionWithDesc(os.Stdout)
 		default:
 			return fmt.Errorf("unsupported shell %s", args[0])
 		}

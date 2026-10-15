@@ -210,3 +210,5 @@ _kubectl-netdrill()
 if [ "$funcstack[1]" = "_kubectl-netdrill" ]; then
     _kubectl-netdrill
 fi
+
+compdef _kubectl-netdrill ./dist/kubectl-netdrill dist/kubectl-netdrill knetdrill
