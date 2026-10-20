@@ -1,0 +1,92 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: demo-order-api
+  namespace: netdrill-demo
+  labels:
+    app: order-api
+    tier: backend
+    environment: staging
+    system: ecommerce
+  annotations:
+    deployment.kubernetes.io/revision: "4"
+    kubectl.kubernetes.io/last-applied-configuration: "{}"
+    ops.netdrill.io/runbook: "https://wiki.internal/runbooks/order-api"
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: order-api
+  template:
+    metadata:
+      labels:
+        app: order-api
+        tier: backend
+        environment: staging
+        system: ecommerce
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9090"
+        ops.netdrill.io/runbook: "https://wiki.internal/runbooks/order-api"
+    spec:
+      serviceAccountName: netdrill-tester-sa
+      nodeSelector:
+        kubernetes.io/os: linux
+      tolerations:
+        - key: "backend"
+          operator: "Exists"
+          effect: "NoSchedule"
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 80
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: "app"
+                      operator: "In"
+                      values:
+                        - "order-api"
+                topologyKey: "kubernetes.io/hostname"
+      containers:
+        - name: order-service
+          image: registry.k8s.io/e2e-test-images/agnhost:2.45
+          args: ["netexec", "--http-port=8080"]
+          ports:
+            - name: http
+              containerPort: 8080
+            - name: metrics
+              containerPort: 9090
+          resources:
+            requests:
+              cpu: 250m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          env:
+            - name: PORT
+              value: "8080"
+            - name: METRICS_PORT
+              value: "9090"
+            - name: DB_MAX_CONNS
+              value: "20"
+          envFrom:
+            - configMapRef:
+                name: app-config
+            - secretRef:
+                name: app-secret
+          volumeMounts:
+            - name: config-volume
+              mountPath: /etc/orders/config
+              readOnly: true
+            - name: secret-volume
+              mountPath: /etc/orders/secret
+              readOnly: true
+      volumes:
+        - name: config-volume
+          configMap:
+            name: app-config
+        - name: secret-volume
+          secret:
+            secretName: app-secret

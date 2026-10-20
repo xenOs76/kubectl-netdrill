@@ -28,12 +28,15 @@ Pass these JSON fields on `netdrill_pod_create` / `netdrill_run_create` /
 
 | Param | CLI flag | Notes |
 |-------|----------|-------|
+| `sameAs` | `--same-as` | Workload to clone settings from (e.g. `my-pod`, `deployment/my-deploy`, `ns/kind/name`) |
+| `sameAsContainer` | `--same-as-container` | Target container to copy resources/env/ports from |
 | `nodeSelector` | `--node-selector` | e.g. `{"kubernetes.io/hostname":"<nodeName>"}` |
 | `serviceAccount` | `--service-account` | Required for EKS IRSA |
 | `env` | `--env` | Map of environment variables |
 | `ports` | `--port` | Array of container ports |
 | `hostNetwork` | `--host-network` | Host network namespace |
-| `replicas` / `labels` / `cpuRequest` / `memoryRequest` / `cpuLimit` / `memoryLimit` | matching deployment flags | Deployment create only |
+| `cpuRequest` / `memoryRequest` / `cpuLimit` / `memoryLimit` | resource flags | CPU/memory requests and limits |
+| `replicas` | `--replicas` | Deployment create only |
 
 Do not apply ad-hoc Pod YAML with `nodeName` to bypass netdrill create tools.
 

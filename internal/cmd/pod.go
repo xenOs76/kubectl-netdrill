@@ -14,7 +14,7 @@ var podCmd = &cobra.Command{
 	Short: "Create a persistent pod for troubleshooting",
 	Long:  `Create a persistent pod with the netdrill image. Unlike 'run', this pod is not automatically deleted.`,
 	Args:  cobra.MaximumNArgs(1),
-	RunE: func(_ *cobra.Command, args []string) error {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		podName := "netdrill"
 		if len(args) > 0 {
 			podName = args[0]
@@ -32,7 +32,7 @@ var podCmd = &cobra.Command{
 			return fmt.Errorf("getting namespace: %w", err)
 		}
 
-		opts := k8s.PodOptionsFromConfig(netdrill.PodConfig{
+		cfg := netdrill.PodConfig{
 			Namespace:      namespace,
 			PodName:        podName,
 			Image:          Image,
@@ -42,18 +42,33 @@ var podCmd = &cobra.Command{
 			Ports:          Ports,
 			EnvVars:        EnvVars,
 			Labels:         Labels,
-		})
+			CPURequest:     CPURequest,
+			MemoryRequest:  MemoryRequest,
+			CPULimit:       CPULimit,
+			MemoryLimit:    MemoryLimit,
+		}
 
-		fmt.Printf("Creating pod %s in namespace %s...\n", podName, namespace)
+		if SameAs != "" {
+			target, err := k8s.ApplySameAsPodConfig(ctx, client, cmd, SameAs, SameAsContainer, namespace, &cfg)
+			if err != nil {
+				return fmt.Errorf("applying --same-as: %w", err)
+			}
+
+			fmt.Printf("Cloning operational settings from %s %s/%s...\n", target.Kind, target.Namespace, target.Name)
+		}
+
+		opts := k8s.PodOptionsFromConfig(cfg)
+
+		fmt.Printf("Creating pod %s in namespace %s...\n", cfg.PodName, cfg.Namespace)
 
 		_, err = k8s.CreatePod(ctx, client, opts)
 		if err != nil {
 			return fmt.Errorf("creating pod: %w", err)
 		}
 
-		fmt.Printf("Pod %s created successfully.\n", podName)
-		fmt.Printf("Use 'kubectl exec -it %s -n %s -- /bin/bash' to attach to it.\n", podName, namespace)
-		fmt.Printf("Use 'kubectl delete pod %s -n %s' to delete it.\n", podName, namespace)
+		fmt.Printf("Pod %s created successfully.\n", cfg.PodName)
+		fmt.Printf("Use 'kubectl exec -it %s -n %s -- /bin/bash' to attach to it.\n", cfg.PodName, cfg.Namespace)
+		fmt.Printf("Use 'kubectl delete pod %s -n %s' to delete it.\n", cfg.PodName, cfg.Namespace)
 
 		return nil
 	},
@@ -61,6 +76,16 @@ var podCmd = &cobra.Command{
 
 func init() {
 	rootCmd.AddCommand(podCmd)
+
+	podCmd.Flags().StringVar(&SameAs, "same-as", "",
+		"Existing pod or deployment to clone operational settings from "+
+			"(e.g. 'my-pod', 'pod/my-pod', 'deployment/my-deploy', 'ns/kind/name')")
+	podCmd.Flags().StringVar(&SameAsContainer, "same-as-container", "",
+		"Container name within the target workload to clone resources/env/ports from (defaults to first container)")
+	podCmd.Flags().StringVar(&CPURequest, "cpu-request", "", "CPU request (e.g. 100m)")
+	podCmd.Flags().StringVar(&MemoryRequest, "memory-request", "", "Memory request (e.g. 128Mi)")
+	podCmd.Flags().StringVar(&CPULimit, "cpu-limit", "", "CPU limit (e.g. 200m)")
+	podCmd.Flags().StringVar(&MemoryLimit, "memory-limit", "", "Memory limit (e.g. 256Mi)")
 
 	podCmd.Flags().StringVar(&ServiceAccount, "service-account", "",
 		"ServiceAccount to use for the pod")
@@ -75,8 +100,15 @@ func init() {
 	podCmd.Flags().StringToStringVar(&Labels, "labels", map[string]string{},
 		"Additional labels (e.g. key1=val1,key2=val2; can be used multiple times)")
 
+	_ = podCmd.RegisterFlagCompletionFunc("same-as", completeSameAs)
+	_ = podCmd.RegisterFlagCompletionFunc("same-as-container", completeSameAsContainer)
+	_ = podCmd.RegisterFlagCompletionFunc("cpu-request", completeCPU)
+	_ = podCmd.RegisterFlagCompletionFunc("cpu-limit", completeCPU)
+	_ = podCmd.RegisterFlagCompletionFunc("memory-request", completeMemory)
+	_ = podCmd.RegisterFlagCompletionFunc("memory-limit", completeMemory)
 	_ = podCmd.RegisterFlagCompletionFunc("node-selector", completeNodeSelector)
 	_ = podCmd.RegisterFlagCompletionFunc("service-account", completeServiceAccount)
 	_ = podCmd.RegisterFlagCompletionFunc("labels", completeLabels)
 	_ = podCmd.RegisterFlagCompletionFunc("port", completePort)
+	_ = podCmd.RegisterFlagCompletionFunc("env", completeEnv)
 }

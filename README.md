@@ -233,6 +233,12 @@ kubectl netdrill pod my-persistent-troubleshooter
 
 | Flag                | Short | Description                                          | Default                           |
 | ------------------- | ----- | ---------------------------------------------------- | --------------------------------- |
+| `--same-as`         |       | Workload to clone settings from (e.g. `my-pod`, `deployment/my-deploy`, `ns/kind/name`) |                                   |
+| `--same-as-container` |     | Container name within target workload to clone resources/env/ports from |                 |
+| `--cpu-request`     |       | CPU request (e.g. `100m`)                            |                                   |
+| `--memory-request`  |       | Memory request (e.g. `128Mi`)                        |                                   |
+| `--cpu-limit`       |       | CPU limit (e.g. `200m`)                              |                                   |
+| `--memory-limit`    |       | Memory limit (e.g. `256Mi`)                          |                                   |
 | `--labels`          |       | Additional labels (e.g. `key=val`; can be used multiple times) |                                   |
 | `--service-account` |       | ServiceAccount to use for the pod                    |                                   |
 | `--port`            |       | Ports to expose on the container (e.g. `80`; can be used multiple times) |                 |
@@ -273,6 +279,13 @@ Create a pod with environment variables:
 kubectl netdrill pod --env DEBUG=true --env API_URL=http://api:8080
 ```
 
+Clone operational settings from an existing pod or deployment:
+
+```bash
+kubectl netdrill pod debug-worker --same-as backend-api-6b9df949b4-z8q21
+kubectl netdrill pod debug-api --same-as deployment/backend-api --service-account custom-sa
+```
+
 Create a pod with a specific IAM role in EKS:
 
 ```bash
@@ -306,6 +319,8 @@ kubectl netdrill deployment my-deployment
 
 | Flag                | Short | Description                                          | Default                           |
 | ------------------- | ----- | ---------------------------------------------------- | --------------------------------- |
+| `--same-as`         |       | Workload to clone settings from (e.g. `my-deploy`, `deployment/my-deploy`, `pod/my-pod`) |                                   |
+| `--same-as-container` |     | Container name within target workload to clone resources/env/ports from |                 |
 | `--replicas`        |       | Number of replicas                                   | `1`                               |
 | `--cpu-request`     |       | CPU request (e.g. `100m`)                            |                                   |
 | `--memory-request`  |       | Memory request (e.g. `128Mi`)                        |                                   |
@@ -337,6 +352,12 @@ Create a deployment with custom labels:
 
 ```bash
 kubectl netdrill deployment my-deploy --labels env=prod,team=network
+```
+
+Create a deployment cloning settings from an existing deployment with overridden replicas:
+
+```bash
+kubectl netdrill deployment debug-api --same-as deployment/api-server --replicas 1
 ```
 
 </details>
@@ -502,6 +523,7 @@ On MCP initialize, the server returns instructions that steer agents to:
 | Ephemeral pod create | `run` (auto-delete on exit) | `netdrill_run_create` (no auto-delete; use `netdrill_run_cleanup`) |
 | Interactive TTY attach | `run` / `debug` | **CLI only** |
 | Non-interactive exec | `kubectl exec` / attach | `netdrill_pod_exec` / `netdrill_debug_exec` |
+| `--same-as` / `--same-as-container` | yes | `sameAs` / `sameAsContainer` |
 | `--node-selector` | yes | `nodeSelector` |
 | `--service-account` | yes | `serviceAccount` |
 | `--env` / `--port` / `--host-network` | yes | `env` / `ports` / `hostNetwork` |
@@ -516,13 +538,13 @@ Shared optional fields on most tools: `namespace` (defaults to MCP `-n`),
 
 | Tool | Required | Optional | Purpose |
 | ---- | -------- | -------- | ------- |
-| `netdrill_pod_create` | — | `podName`, `nodeSelector`, `serviceAccount`, `env`, `ports`, `hostNetwork`, `labels`, `namespace`, `ticketId` | Persistent troubleshooting pod |
+| `netdrill_pod_create` | — | `podName`, `sameAs`, `sameAsContainer`, `nodeSelector`, `serviceAccount`, `env`, `ports`, `hostNetwork`, `labels`, `cpuRequest`, `memoryRequest`, `cpuLimit`, `memoryLimit`, `namespace`, `ticketId` | Persistent troubleshooting pod |
 | `netdrill_pod_delete` | `podName` | `namespace`, `ticketId` | Delete an authorized pod |
 | `netdrill_pod_wait` | `podName` | `namespace`, `ticketId` | Wait until pod is Running |
 | `netdrill_pod_exec` | `podName`, `command` | `containerName`, `namespace`, `ticketId` | Run command; return stdout/stderr. With `--mirror-exec-to-logs`, also mirrors argv+output into the container's `kubectl logs` (PID 1 stdout, best-effort) |
 | `netdrill_run_create` | — | same as pod create + `command` | Ephemeral-style pod (manual cleanup) |
 | `netdrill_run_cleanup` | `podName` | `namespace`, `ticketId` | Delete ephemeral pod |
-| `netdrill_deployment_create` | — | `name`, create fields above + `replicas`, `labels`, `cpuRequest`, `memoryRequest`, `cpuLimit`, `memoryLimit` | Create Deployment |
+| `netdrill_deployment_create` | — | `name`, `sameAs`, `sameAsContainer`, create fields above + `replicas`, `labels`, `cpuRequest`, `memoryRequest`, `cpuLimit`, `memoryLimit` | Create Deployment |
 | `netdrill_deployment_delete` | `name` | `namespace`, `ticketId` | Delete Deployment |
 | `netdrill_debug_add` | `podName` | `targetContainer`, `namespace`, `ticketId` | Add `netdrill-debug` ephemeral container |
 | `netdrill_debug_exec` | `podName`, `command` | `namespace`, `ticketId` | Exec in ephemeral container (same optional log mirroring as `netdrill_pod_exec`) |

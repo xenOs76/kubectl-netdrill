@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/xenos76/kubectl-netdrill/internal/k8s"
 	"github.com/xenos76/kubectl-netdrill/internal/netdrill"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -498,4 +499,101 @@ func (m *mockMCPExecExecutor) write(opts remotecommand.StreamOptions) error {
 	}
 
 	return m.err
+}
+
+func TestHandlePodCreate_SameAs(t *testing.T) {
+	t.Parallel()
+
+	ctx := t.Context()
+	fakeClient := fake.NewSimpleClientset(
+		&corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "source-pod",
+				Namespace: "default",
+				Labels:    map[string]string{"env": "staging"},
+			},
+			Spec: corev1.PodSpec{
+				ServiceAccountName: "source-sa",
+				NodeSelector:       map[string]string{"kubernetes.io/os": "linux"},
+				Containers: []corev1.Container{
+					{
+						Name:  "web",
+						Ports: []corev1.ContainerPort{{ContainerPort: 8080}},
+						Env:   []corev1.EnvVar{{Name: "SOURCE_ENV", Value: "active"}},
+					},
+				},
+			},
+		},
+	)
+
+	deps := testDeps(fakeClient)
+
+	// Create with sameAs and an override on ServiceAccount
+	_, _, err := handlePodCreate(ctx, deps, podCreateInput{
+		PodName:        "cloned-pod",
+		SameAs:         "source-pod",
+		ServiceAccount: "custom-sa", // override
+	})
+	require.NoError(t, err)
+
+	pod, err := deps.Client.CoreV1().Pods("default").Get(ctx, "cloned-pod", metav1.GetOptions{})
+	require.NoError(t, err)
+
+	// Inherited
+	assert.Equal(t, "staging", pod.Labels["env"])
+	assert.Equal(t, map[string]string{"kubernetes.io/os": "linux"}, pod.Spec.NodeSelector)
+	assert.Equal(t, int32(8080), pod.Spec.Containers[0].Ports[0].ContainerPort)
+	assert.Equal(t, "SOURCE_ENV", pod.Spec.Containers[0].Env[0].Name)
+	// Overridden
+	assert.Equal(t, "custom-sa", pod.Spec.ServiceAccountName)
+	// Retains netdrill image
+	assert.Equal(t, deps.Cfg.Image, pod.Spec.Containers[0].Image)
+}
+
+func TestHandleDeploymentCreate_SameAs(t *testing.T) {
+	t.Parallel()
+
+	ctx := t.Context()
+	replicas := int32(3)
+	fakeClient := fake.NewSimpleClientset(
+		&appsv1.Deployment{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "source-deploy",
+				Namespace: "default",
+			},
+			Spec: appsv1.DeploymentSpec{
+				Replicas: &replicas,
+				Template: corev1.PodTemplateSpec{
+					ObjectMeta: metav1.ObjectMeta{
+						Labels: map[string]string{"tier": "api"},
+					},
+					Spec: corev1.PodSpec{
+						ServiceAccountName: "api-sa",
+						Containers: []corev1.Container{
+							{
+								Name:  "server",
+								Ports: []corev1.ContainerPort{{ContainerPort: 9000}},
+							},
+						},
+					},
+				},
+			},
+		},
+	)
+
+	deps := testDeps(fakeClient)
+
+	_, _, err := handleDeploymentCreate(ctx, deps, deploymentCreateInput{
+		Name:   "cloned-deploy",
+		SameAs: "source-deploy",
+	})
+	require.NoError(t, err)
+
+	deploy, err := deps.Client.AppsV1().Deployments("default").Get(ctx, "cloned-deploy", metav1.GetOptions{})
+	require.NoError(t, err)
+
+	assert.Equal(t, int32(3), *deploy.Spec.Replicas)
+	assert.Equal(t, "api-sa", deploy.Spec.Template.Spec.ServiceAccountName)
+	assert.Equal(t, int32(9000), deploy.Spec.Template.Spec.Containers[0].Ports[0].ContainerPort)
+	assert.Equal(t, deps.Cfg.Image, deploy.Spec.Template.Spec.Containers[0].Image)
 }

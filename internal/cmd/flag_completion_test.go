@@ -7,6 +7,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/require"
 	"github.com/xenos76/kubectl-netdrill/internal/k8s"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
@@ -493,7 +494,7 @@ func TestCompleteLabels(t *testing.T) {
 	t.Run("empty token proposes sample labels", func(t *testing.T) {
 		got, dir := completeLabels(nil, nil, "")
 		require.Equal(t, cobra.ShellCompDirectiveDefault, dir)
-		require.Contains(t, got, "app=netdrill")
+		require.Contains(t, got, "key=value")
 		require.Contains(t, got, "env=prod")
 	})
 
@@ -502,12 +503,11 @@ func TestCompleteLabels(t *testing.T) {
 		require.Equal(t, cobra.ShellCompDirectiveNoSpace|cobra.ShellCompDirectiveNoFileComp, dir)
 		require.Contains(t, got, "env=dev")
 		require.Contains(t, got, "env=prod")
-		require.Contains(t, got, "env=staging")
-		require.NotContains(t, got, "app=netdrill")
+		require.NotContains(t, got, "key=value")
 	})
 
 	t.Run("stops completion on comma", func(t *testing.T) {
-		got, dir := completeLabels(nil, nil, "app=netdrill,")
+		got, dir := completeLabels(nil, nil, "key=value,")
 		require.Equal(t, cobra.ShellCompDirectiveNoFileComp, dir)
 		require.Empty(t, got)
 	})
@@ -516,11 +516,241 @@ func TestCompleteLabels(t *testing.T) {
 		var lblMap map[string]string
 
 		cmd := &cobra.Command{}
-		cmd.Flags().StringToStringVar(&lblMap, "labels", map[string]string{"app": "netdrill"}, "")
+		cmd.Flags().StringToStringVar(&lblMap, "labels", map[string]string{"key": "value"}, "")
 
 		got, dir := completeLabels(cmd, nil, "")
 		require.Equal(t, cobra.ShellCompDirectiveDefault, dir)
-		require.NotContains(t, got, "app=netdrill")
+		require.NotContains(t, got, "key=value")
 		require.Contains(t, got, "env=prod")
+	})
+}
+
+// TestCompleteEnv verifies autocompletion suggestions for --env.
+func TestCompleteEnv(t *testing.T) {
+	t.Run("empty token proposes sample env vars", func(t *testing.T) {
+		got, dir := completeEnv(nil, nil, "")
+		require.Equal(t, cobra.ShellCompDirectiveDefault, dir)
+		require.Contains(t, got, "KEY=value")
+		require.Contains(t, got, "AWS_REGION=eu-central-1")
+		require.Contains(t, got, "AWS_ROLE_ARN=arn:aws:iam::111111111111:role/SampleIAMRole")
+		require.Contains(t, got, "AWS_WEB_IDENTITY_TOKEN_FILE=/run/secrets/kubernetes.io/serviceaccount/token")
+	})
+
+	t.Run("prefix filtering", func(t *testing.T) {
+		got, dir := completeEnv(nil, nil, "AWS_ROLE")
+		require.Equal(t, cobra.ShellCompDirectiveDefault, dir)
+		require.Equal(t, []string{"AWS_ROLE_ARN=arn:aws:iam::111111111111:role/SampleIAMRole"}, got)
+	})
+
+	t.Run("value completion after equals uses NoSpace", func(t *testing.T) {
+		got, dir := completeEnv(nil, nil, "AWS_REGION=")
+		require.Equal(t, cobra.ShellCompDirectiveNoSpace|cobra.ShellCompDirectiveNoFileComp, dir)
+		require.Equal(t, []string{"AWS_REGION=eu-central-1"}, got)
+	})
+
+	t.Run("stops completion on comma", func(t *testing.T) {
+		got, dir := completeEnv(nil, nil, "AWS_REGION=eu-central-1,")
+		require.Equal(t, cobra.ShellCompDirectiveNoFileComp, dir)
+		require.Empty(t, got)
+	})
+
+	t.Run("excludes keys already set on command", func(t *testing.T) {
+		var envMap map[string]string
+
+		cmd := &cobra.Command{}
+		cmd.Flags().StringToStringVar(&envMap, "env", map[string]string{"AWS_REGION": "eu-central-1"}, "")
+
+		got, dir := completeEnv(cmd, nil, "")
+		require.Equal(t, cobra.ShellCompDirectiveDefault, dir)
+		require.NotContains(t, got, "AWS_REGION=eu-central-1")
+		require.Contains(t, got, "KEY=value")
+		require.Contains(t, got, "AWS_ROLE_ARN=arn:aws:iam::111111111111:role/SampleIAMRole")
+		require.Contains(t, got, "AWS_WEB_IDENTITY_TOKEN_FILE=/run/secrets/kubernetes.io/serviceaccount/token")
+	})
+
+	t.Run("flag registered on pod and deployment commands", func(t *testing.T) {
+		pfn, exists := podCmd.GetFlagCompletionFunc("env")
+		require.True(t, exists)
+		require.NotNil(t, pfn)
+
+		dfn, exists := deploymentCmd.GetFlagCompletionFunc("env")
+		require.True(t, exists)
+		require.NotNil(t, dfn)
+	})
+}
+
+func newTestSameAsClient() *fake.Clientset {
+	return fake.NewSimpleClientset(
+		&corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "web-pod",
+				Namespace: "default",
+			},
+			Spec: corev1.PodSpec{
+				Containers: []corev1.Container{
+					{Name: "web"},
+					{Name: "sidecar"},
+				},
+			},
+		},
+		&corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "staging-pod",
+				Namespace: "staging",
+			},
+			Spec: corev1.PodSpec{
+				Containers: []corev1.Container{
+					{Name: "worker"},
+				},
+			},
+		},
+		&appsv1.Deployment{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "api-deploy",
+				Namespace: "default",
+			},
+			Spec: appsv1.DeploymentSpec{
+				Template: corev1.PodTemplateSpec{
+					Spec: corev1.PodSpec{
+						Containers: []corev1.Container{
+							{Name: "server"},
+						},
+					},
+				},
+			},
+		},
+		&appsv1.Deployment{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "staging-deploy",
+				Namespace: "staging",
+			},
+			Spec: appsv1.DeploymentSpec{
+				Template: corev1.PodTemplateSpec{
+					Spec: corev1.PodSpec{
+						Containers: []corev1.Container{
+							{Name: "runner"},
+						},
+					},
+				},
+			},
+		},
+	)
+}
+
+func TestFetchPodsAndDeployments(t *testing.T) {
+	origProvider := k8s.ClientProvider
+	defer func() {
+		k8s.ClientProvider = origProvider
+	}()
+
+	fakeClient := newTestSameAsClient()
+	k8s.ClientProvider = func(_ *genericclioptions.ConfigFlags) (kubernetes.Interface, *rest.Config, error) {
+		return fakeClient, &rest.Config{}, nil
+	}
+
+	pods, err := FetchPods("default")
+	require.NoError(t, err)
+	require.Equal(t, []string{"web-pod"}, pods)
+
+	deploys, err := FetchDeployments("default")
+	require.NoError(t, err)
+	require.Equal(t, []string{"api-deploy"}, deploys)
+}
+
+func TestCompleteSameAs(t *testing.T) {
+	origProvider := k8s.ClientProvider
+	defer func() {
+		k8s.ClientProvider = origProvider
+	}()
+
+	fakeClient := newTestSameAsClient()
+	k8s.ClientProvider = func(_ *genericclioptions.ConfigFlags) (kubernetes.Interface, *rest.Config, error) {
+		return fakeClient, &rest.Config{}, nil
+	}
+
+	t.Run("default kind pod proposes only pods when no deploy prefix", func(t *testing.T) {
+		cmd := &cobra.Command{Use: "pod"}
+		got, dir := completeSameAs(cmd, nil, "")
+		require.Equal(t, cobra.ShellCompDirectiveNoFileComp, dir)
+		require.Contains(t, got, "web-pod")
+		require.Contains(t, got, "pod/web-pod")
+		require.NotContains(t, got, "deployment/api-deploy")
+		require.NotContains(t, got, "api-deploy")
+	})
+
+	t.Run("default kind deployment proposes only deployments when no pod prefix", func(t *testing.T) {
+		cmd := &cobra.Command{Use: "deployment"}
+		got, dir := completeSameAs(cmd, nil, "")
+		require.Equal(t, cobra.ShellCompDirectiveNoFileComp, dir)
+		require.Contains(t, got, "api-deploy")
+		require.Contains(t, got, "deployment/api-deploy")
+		require.NotContains(t, got, "pod/web-pod")
+		require.NotContains(t, got, "web-pod")
+	})
+
+	t.Run("filter with pod/ prefix", func(t *testing.T) {
+		cmd := &cobra.Command{Use: "pod"}
+		got, dir := completeSameAs(cmd, nil, "pod/")
+		require.Equal(t, cobra.ShellCompDirectiveNoFileComp, dir)
+		require.Equal(t, []string{"pod/web-pod"}, got)
+	})
+
+	t.Run("filter with deployment/ prefix", func(t *testing.T) {
+		cmd := &cobra.Command{Use: "pod"}
+		got, dir := completeSameAs(cmd, nil, "deployment/")
+		require.Equal(t, cobra.ShellCompDirectiveNoFileComp, dir)
+		require.Equal(t, []string{"deployment/api-deploy"}, got)
+	})
+
+	t.Run("cross namespace prefix staging/ for pod proposes only pods by default", func(t *testing.T) {
+		cmd := &cobra.Command{Use: "pod"}
+		got, dir := completeSameAs(cmd, nil, "staging/")
+		require.Equal(t, cobra.ShellCompDirectiveNoFileComp, dir)
+		require.Contains(t, got, "staging/pod/staging-pod")
+		require.NotContains(t, got, "staging/deployment/staging-deploy")
+	})
+}
+
+func TestCompleteSameAsContainer(t *testing.T) {
+	origProvider := k8s.ClientProvider
+	defer func() {
+		k8s.ClientProvider = origProvider
+	}()
+
+	fakeClient := newTestSameAsClient()
+	k8s.ClientProvider = func(_ *genericclioptions.ConfigFlags) (kubernetes.Interface, *rest.Config, error) {
+		return fakeClient, &rest.Config{}, nil
+	}
+
+	t.Run("empty when same-as flag not set", func(t *testing.T) {
+		cmd := &cobra.Command{Use: "pod"}
+		cmd.Flags().String("same-as", "", "")
+		got, dir := completeSameAsContainer(cmd, nil, "")
+		require.Equal(t, cobra.ShellCompDirectiveNoFileComp, dir)
+		require.Empty(t, got)
+	})
+
+	t.Run("proposes containers from target pod", func(t *testing.T) {
+		cmd := &cobra.Command{Use: "pod"}
+		cmd.Flags().String("same-as", "web-pod", "")
+		got, dir := completeSameAsContainer(cmd, nil, "")
+		require.Equal(t, cobra.ShellCompDirectiveNoFileComp, dir)
+		require.Equal(t, []string{"sidecar", "web"}, got)
+	})
+
+	t.Run("filters containers by prefix", func(t *testing.T) {
+		cmd := &cobra.Command{Use: "pod"}
+		cmd.Flags().String("same-as", "web-pod", "")
+		got, dir := completeSameAsContainer(cmd, nil, "side")
+		require.Equal(t, cobra.ShellCompDirectiveNoFileComp, dir)
+		require.Equal(t, []string{"sidecar"}, got)
+	})
+
+	t.Run("proposes containers from target deployment", func(t *testing.T) {
+		cmd := &cobra.Command{Use: "pod"}
+		cmd.Flags().String("same-as", "deployment/api-deploy", "")
+		got, dir := completeSameAsContainer(cmd, nil, "")
+		require.Equal(t, cobra.ShellCompDirectiveNoFileComp, dir)
+		require.Equal(t, []string{"server"}, got)
 	})
 }

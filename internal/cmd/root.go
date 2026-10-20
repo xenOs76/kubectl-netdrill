@@ -27,6 +27,10 @@ var (
 	HostNetwork bool
 	// Labels are additional labels for resources (pods or deployments).
 	Labels map[string]string
+	// SameAs specifies the workload to clone operational settings from.
+	SameAs string
+	// SameAsContainer specifies which container in the target workload to clone from.
+	SameAsContainer string
 )
 
 var rootCmd = &cobra.Command{

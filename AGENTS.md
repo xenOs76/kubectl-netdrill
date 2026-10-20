@@ -29,10 +29,11 @@ MCP server for AI agents.
 
 ### Implemented Features
 
-- **`pod` command**: Persistent Pod (`--service-account`, `--env`, `--port`,
-  `--host-network`, `--node-selector`, `--labels`).
-- **`deployment` command**: Deployment with replicas, resources, labels, and the
-  same pod options.
+- **`pod` command**: Persistent Pod (`--same-as`, `--same-as-container`,
+  `--service-account`, `--env`, `--port`, `--host-network`, `--node-selector`,
+  `--labels`, resources).
+- **`deployment` command**: Deployment with replicas, resources, labels, `--same-as`,
+  and the same pod options.
 - **`debug` command**: Ephemeral `netdrill-debug` container (`--target` for PID
   namespace sharing).
 - **`mcp` command**: MCP stdio server (pod/deployment lifecycle, non-interactive
@@ -138,5 +139,7 @@ Releases are managed via `GoReleaser`. Configuration is in `.goreleaser.yaml`.
       pod command.
 - [x] **MCP create parity**: Expose serviceAccount/env/ports/hostNetwork and
       deployment resources on MCP tools.
+- [x] **`--same-as` flag**: Clone operational settings from existing pods or
+      deployments with CLI overrides and MCP parity.
 - [ ] **Iperf3 listening port**: Iperf3 in server mode needs an open port to
       receive traffic from clients
