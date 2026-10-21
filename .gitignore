@@ -5,3 +5,5 @@ cover*out
 manpages
 .vscode
 .scannerwork
+# roborev snapshots
+/.roborev/

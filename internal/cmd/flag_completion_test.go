@@ -489,7 +489,7 @@ func TestCompletePort(t *testing.T) {
 	require.NotContains(t, filtered, "443")
 }
 
-// TestCompleteLabels verifies autocompletion suggestions for --labels.
+// TestCompleteLabels verifies autocompletion suggestions for --labels without --same-as.
 func TestCompleteLabels(t *testing.T) {
 	t.Run("empty token proposes sample labels", func(t *testing.T) {
 		got, dir := completeLabels(nil, nil, "")
@@ -521,6 +521,61 @@ func TestCompleteLabels(t *testing.T) {
 		got, dir := completeLabels(cmd, nil, "")
 		require.Equal(t, cobra.ShellCompDirectiveDefault, dir)
 		require.NotContains(t, got, "key=value")
+		require.Contains(t, got, "env=prod")
+	})
+}
+
+// TestCompleteLabels_SameAs verifies dynamic --labels autocompletion when --same-as is specified.
+func TestCompleteLabels_SameAs(t *testing.T) {
+	origProvider := k8s.ClientProvider
+	defer func() {
+		k8s.ClientProvider = origProvider
+	}()
+
+	fakeClient := newTestSameAsClient()
+	k8s.ClientProvider = func(_ *genericclioptions.ConfigFlags) (kubernetes.Interface, *rest.Config, error) {
+		return fakeClient, &rest.Config{}, nil
+	}
+
+	t.Run("same-as pod proposes filtered target labels", func(t *testing.T) {
+		cmd := &cobra.Command{Use: "pod"}
+		cmd.Flags().String("same-as", "web-pod", "")
+
+		got, dir := completeLabels(cmd, nil, "")
+		require.Equal(t, cobra.ShellCompDirectiveDefault, dir)
+		require.Equal(t, []string{"app=web", "tier=frontend"}, got)
+		require.NotContains(t, got, "pod-template-hash=67484d856d")
+		require.NotContains(t, got, "kubectl-netdrill.io/managed=true")
+	})
+
+	t.Run("same-as deployment proposes deployment template labels", func(t *testing.T) {
+		cmd := &cobra.Command{Use: "deployment"}
+		cmd.Flags().String("same-as", "api-deploy", "")
+
+		got, dir := completeLabels(cmd, nil, "")
+		require.Equal(t, cobra.ShellCompDirectiveDefault, dir)
+		require.Equal(t, []string{"app=api", "tier=backend"}, got)
+	})
+
+	t.Run("same-as filters by prefix and excludes used keys", func(t *testing.T) {
+		var lblMap map[string]string
+
+		cmd := &cobra.Command{Use: "pod"}
+		cmd.Flags().String("same-as", "web-pod", "")
+		cmd.Flags().StringToStringVar(&lblMap, "labels", map[string]string{"app": "web"}, "")
+
+		got, dir := completeLabels(cmd, nil, "ti")
+		require.Equal(t, cobra.ShellCompDirectiveDefault, dir)
+		require.Equal(t, []string{"tier=frontend"}, got)
+	})
+
+	t.Run("same-as falls back to sample labels when target not found", func(t *testing.T) {
+		cmd := &cobra.Command{Use: "pod"}
+		cmd.Flags().String("same-as", "nonexistent-pod", "")
+
+		got, dir := completeLabels(cmd, nil, "")
+		require.Equal(t, cobra.ShellCompDirectiveDefault, dir)
+		require.Contains(t, got, "key=value")
 		require.Contains(t, got, "env=prod")
 	})
 }
@@ -585,6 +640,12 @@ func newTestSameAsClient() *fake.Clientset {
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "web-pod",
 				Namespace: "default",
+				Labels: map[string]string{
+					"app":                         "web",
+					"tier":                        "frontend",
+					"pod-template-hash":           "67484d856d",
+					"kubectl-netdrill.io/managed": "true",
+				},
 			},
 			Spec: corev1.PodSpec{
 				Containers: []corev1.Container{
@@ -611,6 +672,12 @@ func newTestSameAsClient() *fake.Clientset {
 			},
 			Spec: appsv1.DeploymentSpec{
 				Template: corev1.PodTemplateSpec{
+					ObjectMeta: metav1.ObjectMeta{
+						Labels: map[string]string{
+							"app":  "api",
+							"tier": "backend",
+						},
+					},
 					Spec: corev1.PodSpec{
 						Containers: []corev1.Container{
 							{Name: "server"},
