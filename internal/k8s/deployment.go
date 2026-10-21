@@ -2,14 +2,12 @@ package k8s
 
 import (
 	"context"
-	"fmt"
 	"maps"
 
 	"github.com/xenos76/kubectl-netdrill/internal/netdrill"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
@@ -86,9 +84,10 @@ func CreateDeployment(
 
 	deployment := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      opts.PodName, // Reuse PodName field for Deployment name
-			Namespace: opts.Namespace,
-			Labels:    labels,
+			Name:        opts.PodName, // Reuse PodName field for Deployment name
+			Namespace:   opts.Namespace,
+			Labels:      labels,
+			Annotations: opts.Annotations,
 		},
 		Spec: appsv1.DeploymentSpec{
 			Replicas: &replicas,
@@ -97,7 +96,8 @@ func CreateDeployment(
 			},
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
-					Labels: labels,
+					Labels:      labels,
+					Annotations: opts.Annotations,
 				},
 				Spec: corev1.PodSpec{
 					Containers: []corev1.Container{
@@ -111,12 +111,23 @@ func CreateDeployment(
 							Args:            opts.Args,
 							Ports:           opts.Ports,
 							Env:             opts.EnvVars,
+							EnvFrom:         opts.EnvFrom,
 							Resources:       resources,
+							VolumeMounts:    opts.VolumeMounts,
+							SecurityContext: opts.ContainerSecurityContext,
 						},
 					},
-					HostNetwork:        opts.HostNetwork,
-					NodeSelector:       opts.NodeSelector,
-					ServiceAccountName: opts.ServiceAccount,
+					HostNetwork:               opts.HostNetwork,
+					NodeSelector:              opts.NodeSelector,
+					ServiceAccountName:        opts.ServiceAccount,
+					Affinity:                  opts.Affinity,
+					Tolerations:               opts.Tolerations,
+					TopologySpreadConstraints: opts.TopologySpreadConstraints,
+					DNSConfig:                 opts.DNSConfig,
+					DNSPolicy:                 opts.DNSPolicy,
+					SecurityContext:           opts.SecurityContext,
+					PriorityClassName:         opts.PriorityClassName,
+					Volumes:                   opts.Volumes,
 				},
 			},
 		},
@@ -129,56 +140,7 @@ func CreateDeployment(
 
 // buildResources creates ResourceRequirements from DeploymentOptions.
 func buildResources(opts DeploymentOptions) (corev1.ResourceRequirements, error) {
-	var err error
-
-	resources := corev1.ResourceRequirements{}
-
-	resources.Requests, err = parseResource(opts.CPURequest, "cpu-request", resources.Requests, corev1.ResourceCPU)
-	if err != nil {
-		return resources, err
-	}
-
-	resources.Requests, err = parseResource(opts.MemoryRequest, "memory-request",
-		resources.Requests, corev1.ResourceMemory)
-	if err != nil {
-		return resources, err
-	}
-
-	resources.Limits, err = parseResource(opts.CPULimit, "cpu-limit", resources.Limits, corev1.ResourceCPU)
-	if err != nil {
-		return resources, err
-	}
-
-	resources.Limits, err = parseResource(opts.MemoryLimit, "memory-limit", resources.Limits, corev1.ResourceMemory)
-	if err != nil {
-		return resources, err
-	}
-
-	return resources, nil
-}
-
-// parseResource parses a string value into a Quantity and adds it to the ResourceList.
-func parseResource(
-	val, name string,
-	list corev1.ResourceList,
-	resName corev1.ResourceName,
-) (corev1.ResourceList, error) {
-	if val == "" {
-		return list, nil
-	}
-
-	q, err := resource.ParseQuantity(val)
-	if err != nil {
-		return list, fmt.Errorf("invalid %s %q: %w", name, val, err)
-	}
-
-	if list == nil {
-		list = make(corev1.ResourceList)
-	}
-
-	list[resName] = q
-
-	return list, nil
+	return BuildResourceRequirements(opts.CPURequest, opts.MemoryRequest, opts.CPULimit, opts.MemoryLimit)
 }
 
 // DeleteDeployment deletes the specified Deployment.

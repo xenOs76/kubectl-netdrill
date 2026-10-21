@@ -1,0 +1,98 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: demo-scheduling-pod
+  namespace: netdrill-demo
+  labels:
+    app: secure-worker
+    role: background-processor
+    tier: worker
+  annotations:
+    compliance.security/pci-dss: "true"
+    netdrill.demo/note: "Tests securityContext, affinity, tolerations, topologySpread, and DNS settings"
+spec:
+  serviceAccountName: netdrill-tester-sa
+  hostNetwork: false
+  dnsPolicy: "ClusterFirstWithHostNet"
+  dnsConfig:
+    nameservers:
+      - "1.1.1.1"
+      - "8.8.8.8"
+    searches:
+      - "corp.internal"
+      - "svc.cluster.local"
+    options:
+      - name: "ndots"
+        value: "2"
+      - name: "timeout"
+        value: "3"
+  affinity:
+    nodeAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+        - weight: 50
+          preference:
+            matchExpressions:
+              - key: "node-role.kubernetes.io/worker"
+                operator: "Exists"
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+        - weight: 100
+          podAffinityTerm:
+            labelSelector:
+              matchExpressions:
+                - key: "app"
+                  operator: "In"
+                  values:
+                    - "secure-worker"
+            topologyKey: "kubernetes.io/hostname"
+  topologySpreadConstraints:
+    - maxSkew: 1
+      topologyKey: "topology.kubernetes.io/zone"
+      whenUnsatisfiable: "ScheduleAnyway"
+      labelSelector:
+        matchLabels:
+          app: secure-worker
+  securityContext:
+    runAsUser: 10001
+    runAsGroup: 10001
+    runAsNonRoot: true
+    fsGroup: 20000
+  containers:
+    - name: worker
+      image: registry.k8s.io/e2e-test-images/agnhost:2.45
+      command: ["/agnhost", "pause"]
+      securityContext:
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop:
+            - ALL
+      resources:
+        requests:
+          cpu: 200m
+          memory: 256Mi
+        limits:
+          cpu: 500m
+          memory: 512Mi
+      env:
+        - name: WORKER_ID
+          value: "worker-01"
+      volumeMounts:
+        - name: scratch-dir
+          mountPath: /tmp/scratch
+        - name: podinfo
+          mountPath: /etc/podinfo
+          readOnly: true
+  volumes:
+    - name: scratch-dir
+      emptyDir:
+        medium: Memory
+        sizeLimit: 64Mi
+    - name: podinfo
+      downwardAPI:
+        items:
+          - path: "labels"
+            fieldRef:
+              fieldPath: metadata.labels
+          - path: "annotations"
+            fieldRef:
+              fieldPath: metadata.annotations

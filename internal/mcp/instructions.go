@@ -19,14 +19,18 @@ do not reinvent with openssl/curl/awscli unless the catalog lacks the capability
 
 Create tool options (netdrill_pod_create / netdrill_run_create /
 netdrill_deployment_create):
+- sameAs / sameAsContainer — clone operational settings (labels, nodeSelector,
+  affinity, tolerations, serviceAccount, env, ports, resources, securityContext,
+  DNS) from an existing pod or deployment (e.g. "my-pod", "deployment/my-deploy",
+  "ns/kind/name"). Explicit parameters override cloned settings.
 - nodeSelector — when the user names a node/host, use
   {"kubernetes.io/hostname":"<nodeName>"} (same as CLI
   --node-selector kubernetes.io/hostname=<nodeName>). Do not apply ad-hoc Pod
   YAML with nodeName to bypass netdrill.
 - serviceAccount — set for EKS IRSA (IAM role via ServiceAccount).
 - env, ports, hostNetwork — match CLI --env / --port / --host-network.
-- deployment only: replicas, labels, cpuRequest, memoryRequest, cpuLimit,
-  memoryLimit.
+- cpuRequest, memoryRequest, cpuLimit, memoryLimit — container resource requests/limits.
+- deployment only: replicas.
 
 Image:
 - Default image is ghcr.io/xenos76/netdrill. With --resolve-image (default),

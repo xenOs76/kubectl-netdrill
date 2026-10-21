@@ -257,12 +257,16 @@ var (
 	sampleMemories = []string{"64Mi", "128Mi", "256Mi", "512Mi", "1Gi", "2Gi", "4Gi"}
 	samplePorts    = []string{"80", "443", "8080", "8443"}
 	sampleLabels   = []string{
-		"app=netdrill",
+		"key=value",
 		"env=dev",
 		"env=prod",
-		"env=staging",
 		"team=sre",
-		"tier=tools",
+	}
+	sampleEnv = []string{
+		"KEY=value",
+		"AWS_REGION=eu-central-1",
+		"AWS_ROLE_ARN=arn:aws:iam::111111111111:role/SampleIAMRole",
+		"AWS_WEB_IDENTITY_TOKEN_FILE=/run/secrets/kubernetes.io/serviceaccount/token",
 	}
 )
 
@@ -299,6 +303,8 @@ func completePort(_ *cobra.Command, _ []string, toComplete string) ([]string, co
 }
 
 // completeLabels provides autocompletion suggestions for the --labels flag.
+//
+//nolint:dupl // completion logic for labels and env flags is kept explicit
 func completeLabels(cmd *cobra.Command, _ []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 	if strings.Contains(toComplete, ",") {
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -333,4 +339,414 @@ func completeLabels(cmd *cobra.Command, _ []string, toComplete string) ([]string
 	}
 
 	return suggestions, cobra.ShellCompDirectiveDefault
+}
+
+// completeEnv provides autocompletion suggestions for the --env flag.
+//
+//nolint:dupl // completion logic for labels and env flags is kept explicit
+func completeEnv(cmd *cobra.Command, _ []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	if strings.Contains(toComplete, ",") {
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
+	var usedKeys map[string]struct{}
+
+	if cmd != nil {
+		if existing, err := cmd.Flags().GetStringToString("env"); err == nil && len(existing) > 0 {
+			usedKeys = make(map[string]struct{}, len(existing))
+			for k := range existing {
+				usedKeys[k] = struct{}{}
+			}
+		}
+	}
+
+	var suggestions []string
+
+	for _, e := range sampleEnv {
+		key, _, _ := strings.Cut(e, "=")
+		if _, used := usedKeys[key]; used {
+			continue
+		}
+
+		if strings.HasPrefix(e, toComplete) {
+			suggestions = append(suggestions, e)
+		}
+	}
+
+	if strings.Contains(toComplete, "=") {
+		return suggestions, cobra.ShellCompDirectiveNoSpace | cobra.ShellCompDirectiveNoFileComp
+	}
+
+	return suggestions, cobra.ShellCompDirectiveDefault
+}
+
+// FetchPods queries the Kubernetes cluster for all pod names in the given namespace,
+// with a 2-second timeout.
+func FetchPods(namespace string) ([]string, error) {
+	client, _, err := k8s.ClientProvider(ConfigFlags)
+	if err != nil {
+		return nil, err
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
+	defer cancel()
+
+	podList, err := client.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	names := make([]string, 0, len(podList.Items))
+	for _, p := range podList.Items {
+		names = append(names, p.Name)
+	}
+
+	return names, nil
+}
+
+// FetchDeployments queries the Kubernetes cluster for all deployment names in the given namespace,
+// with a 2-second timeout.
+func FetchDeployments(namespace string) ([]string, error) {
+	client, _, err := k8s.ClientProvider(ConfigFlags)
+	if err != nil {
+		return nil, err
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
+	defer cancel()
+
+	deployList, err := client.AppsV1().Deployments(namespace).List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	names := make([]string, 0, len(deployList.Items))
+	for _, d := range deployList.Items {
+		names = append(names, d.Name)
+	}
+
+	return names, nil
+}
+
+func isPodKind(k string) bool {
+	return k == "pod" || k == "pods" || k == "po"
+}
+
+func isDeployKind(k string) bool {
+	return k == "deployment" || k == "deployments" || k == "deploy"
+}
+
+func completeWorkloadPods(queryNs, prefix, filterPrefix string) ([]string, error) {
+	pods, err := FetchPods(queryNs)
+	if err != nil {
+		return nil, err
+	}
+
+	var suggestions []string
+
+	for _, p := range pods {
+		if strings.HasPrefix(p, filterPrefix) {
+			suggestions = append(suggestions, prefix+p)
+		}
+	}
+
+	slices.Sort(suggestions)
+
+	return suggestions, nil
+}
+
+func completeWorkloadDeployments(queryNs, prefix, filterPrefix string) ([]string, error) {
+	deploys, err := FetchDeployments(queryNs)
+	if err != nil {
+		return nil, err
+	}
+
+	var suggestions []string
+
+	for _, d := range deploys {
+		if strings.HasPrefix(d, filterPrefix) {
+			suggestions = append(suggestions, prefix+d)
+		}
+	}
+
+	slices.Sort(suggestions)
+
+	return suggestions, nil
+}
+
+func completeDefaultPods(targetNs, toComplete string) ([]string, error) {
+	pods, err := FetchPods(targetNs)
+	if err != nil {
+		return nil, err
+	}
+
+	var suggestions []string
+
+	for _, p := range pods {
+		c := "pod/" + p
+		if strings.HasPrefix(c, toComplete) {
+			suggestions = append(suggestions, c)
+		}
+
+		if strings.HasPrefix(p, toComplete) {
+			suggestions = append(suggestions, p)
+		}
+	}
+
+	return suggestions, nil
+}
+
+func completeDefaultDeployments(targetNs, toComplete string) ([]string, error) {
+	deploys, err := FetchDeployments(targetNs)
+	if err != nil {
+		return nil, err
+	}
+
+	var suggestions []string
+
+	for _, d := range deploys {
+		c := "deployment/" + d
+		if strings.HasPrefix(c, toComplete) {
+			suggestions = append(suggestions, c)
+		}
+
+		if strings.HasPrefix(d, toComplete) {
+			suggestions = append(suggestions, d)
+		}
+	}
+
+	return suggestions, nil
+}
+
+func collectNamespaceItems(items []string, prefix, kind, toComplete string) []string {
+	var suggestions []string
+
+	for _, item := range items {
+		c := prefix + kind + "/" + item
+		if strings.HasPrefix(c, toComplete) {
+			suggestions = append(suggestions, c)
+		}
+
+		bare := prefix + item
+		if strings.HasPrefix(bare, toComplete) {
+			suggestions = append(suggestions, bare)
+		}
+	}
+
+	return suggestions
+}
+
+func completeNamespacePods(ns, prefix, toComplete string) ([]string, cobra.ShellCompDirective) {
+	pods, err := FetchPods(ns)
+	if err != nil {
+		return nil, cobra.ShellCompDirectiveError
+	}
+
+	suggestions := collectNamespaceItems(pods, prefix, "pod", toComplete)
+
+	if strings.HasPrefix(toComplete, prefix+"deploy") {
+		deploys, err := FetchDeployments(ns)
+		if err == nil {
+			for _, d := range deploys {
+				c := prefix + "deployment/" + d
+				if strings.HasPrefix(c, toComplete) {
+					suggestions = append(suggestions, c)
+				}
+			}
+		}
+	}
+
+	slices.Sort(suggestions)
+
+	return suggestions, cobra.ShellCompDirectiveNoFileComp
+}
+
+func completeNamespaceDeployments(ns, prefix, toComplete string) ([]string, cobra.ShellCompDirective) {
+	deploys, err := FetchDeployments(ns)
+	if err != nil {
+		return nil, cobra.ShellCompDirectiveError
+	}
+
+	suggestions := collectNamespaceItems(deploys, prefix, "deployment", toComplete)
+
+	if strings.HasPrefix(toComplete, prefix+"pod") || strings.HasPrefix(toComplete, prefix+"po") {
+		pods, err := FetchPods(ns)
+		if err == nil {
+			for _, p := range pods {
+				c := prefix + "pod/" + p
+				if strings.HasPrefix(c, toComplete) {
+					suggestions = append(suggestions, c)
+				}
+			}
+		}
+	}
+
+	slices.Sort(suggestions)
+
+	return suggestions, cobra.ShellCompDirectiveNoFileComp
+}
+
+func completeNamespaceWorkloads(ns, prefix, defaultKind, toComplete string) ([]string, cobra.ShellCompDirective) {
+	if defaultKind == "pod" {
+		return completeNamespacePods(ns, prefix, toComplete)
+	}
+
+	return completeNamespaceDeployments(ns, prefix, toComplete)
+}
+
+func completeDefaultWorkloads(targetNs, defaultKind, toComplete string) ([]string, cobra.ShellCompDirective) {
+	if defaultKind == "pod" {
+		suggestions, err := completeDefaultPods(targetNs, toComplete)
+		if err != nil {
+			return nil, cobra.ShellCompDirectiveError
+		}
+
+		if strings.HasPrefix(toComplete, "deploy") {
+			extra, err := completeWorkloadDeployments(
+				targetNs, "deployment/", strings.TrimPrefix(toComplete, "deployment/"),
+			)
+			if err == nil {
+				suggestions = append(suggestions, extra...)
+			}
+		}
+
+		slices.Sort(suggestions)
+
+		return suggestions, cobra.ShellCompDirectiveNoFileComp
+	}
+
+	suggestions, err := completeDefaultDeployments(targetNs, toComplete)
+	if err != nil {
+		return nil, cobra.ShellCompDirectiveError
+	}
+
+	if strings.HasPrefix(toComplete, "pod") || strings.HasPrefix(toComplete, "po") {
+		extra, err := completeWorkloadPods(
+			targetNs, "pod/", strings.TrimPrefix(toComplete, "pod/"),
+		)
+		if err == nil {
+			suggestions = append(suggestions, extra...)
+		}
+	}
+
+	slices.Sort(suggestions)
+
+	return suggestions, cobra.ShellCompDirectiveNoFileComp
+}
+
+func completeSameAsTwoParts(
+	first, filter, targetNs, defaultKind, toComplete string,
+) ([]string, cobra.ShellCompDirective) {
+	if isPodKind(first) {
+		s, err := completeWorkloadPods(targetNs, first+"/", filter)
+		if err != nil {
+			return nil, cobra.ShellCompDirectiveError
+		}
+
+		return s, cobra.ShellCompDirectiveNoFileComp
+	}
+
+	if isDeployKind(first) {
+		s, err := completeWorkloadDeployments(targetNs, first+"/", filter)
+		if err != nil {
+			return nil, cobra.ShellCompDirectiveError
+		}
+
+		return s, cobra.ShellCompDirectiveNoFileComp
+	}
+
+	return completeNamespaceWorkloads(first, first+"/", defaultKind, toComplete)
+}
+
+func completeSameAsThreeParts(ns, kind, filter string) ([]string, cobra.ShellCompDirective) {
+	prefix := ns + "/" + kind + "/"
+
+	if isPodKind(kind) {
+		s, err := completeWorkloadPods(ns, prefix, filter)
+		if err != nil {
+			return nil, cobra.ShellCompDirectiveError
+		}
+
+		return s, cobra.ShellCompDirectiveNoFileComp
+	}
+
+	if isDeployKind(kind) {
+		s, err := completeWorkloadDeployments(ns, prefix, filter)
+		if err != nil {
+			return nil, cobra.ShellCompDirectiveError
+		}
+
+		return s, cobra.ShellCompDirectiveNoFileComp
+	}
+
+	return nil, cobra.ShellCompDirectiveNoFileComp
+}
+
+// completeSameAs provides autocompletion suggestions for the --same-as flag.
+func completeSameAs(cmd *cobra.Command, _ []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	targetNs := getTargetNamespace()
+	defaultKind := "pod"
+
+	if cmd != nil && cmd.Name() == "deployment" {
+		defaultKind = "deployment"
+	}
+
+	parts := strings.Split(toComplete, "/")
+
+	switch len(parts) {
+	case 2:
+		return completeSameAsTwoParts(parts[0], parts[1], targetNs, defaultKind, toComplete)
+	case 3:
+		return completeSameAsThreeParts(parts[0], parts[1], parts[2])
+	default:
+		return completeDefaultWorkloads(targetNs, defaultKind, toComplete)
+	}
+}
+
+// completeSameAsContainer provides autocompletion suggestions for the --same-as-container flag.
+// It inspects the target workload specified in --same-as and proposes its container names.
+func completeSameAsContainer(cmd *cobra.Command, _ []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	if cmd == nil {
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
+	target, err := cmd.Flags().GetString("same-as")
+	if err != nil || strings.TrimSpace(target) == "" {
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
+	defaultKind := "pod"
+	if cmd.Name() == "deployment" {
+		defaultKind = "deployment"
+	}
+
+	targetInfo, err := k8s.ParseSameAsTarget(target, defaultKind, getTargetNamespace())
+	if err != nil {
+		return nil, cobra.ShellCompDirectiveError
+	}
+
+	client, _, err := k8s.ClientProvider(ConfigFlags)
+	if err != nil {
+		return nil, cobra.ShellCompDirectiveError
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
+	defer cancel()
+
+	workload, err := k8s.FetchSameAsWorkload(ctx, client, targetInfo)
+	if err != nil {
+		return nil, cobra.ShellCompDirectiveError
+	}
+
+	var suggestions []string
+
+	for _, c := range workload.PodSpec.Containers {
+		if strings.HasPrefix(c.Name, toComplete) {
+			suggestions = append(suggestions, c.Name)
+		}
+	}
+
+	slices.Sort(suggestions)
+
+	return suggestions, cobra.ShellCompDirectiveNoFileComp
 }

@@ -14,4 +14,5 @@ func TestAgentInstructions(t *testing.T) {
 	assert.Contains(t, AgentInstructions, "serviceAccount")
 	assert.Contains(t, AgentInstructions, "netdrill://container-tools")
 	assert.Contains(t, AgentInstructions, "kubernetes.io/hostname")
+	assert.Contains(t, AgentInstructions, "sameAs")
 }

@@ -63,12 +63,44 @@ type PodOptions struct {
 	Ports []corev1.ContainerPort
 	// EnvVars are environment variables for the netdrill container.
 	EnvVars []corev1.EnvVar
+	// EnvFrom references ConfigMaps/Secrets as environment variables.
+	EnvFrom []corev1.EnvFromSource
 	// Owner stamps the kubectl-netdrill.io/owner label.
 	Owner string
 	// Ticket stamps the kubectl-netdrill.io/ticket label when non-empty.
 	Ticket string
 	// Labels are extra labels merged onto the pod.
 	Labels map[string]string
+	// Annotations are annotations attached to the pod.
+	Annotations map[string]string
+	// Affinity specifies scheduling constraints (node, pod, podAnti).
+	Affinity *corev1.Affinity
+	// Tolerations specifies taints tolerated by the pod.
+	Tolerations []corev1.Toleration
+	// TopologySpreadConstraints controls how pods are spread across failure domains.
+	TopologySpreadConstraints []corev1.TopologySpreadConstraint
+	// DNSConfig specifies custom DNS configuration.
+	DNSConfig *corev1.PodDNSConfig
+	// DNSPolicy specifies the DNS policy.
+	DNSPolicy corev1.DNSPolicy
+	// SecurityContext specifies pod-level security context.
+	SecurityContext *corev1.PodSecurityContext
+	// ContainerSecurityContext specifies container-level security context.
+	ContainerSecurityContext *corev1.SecurityContext
+	// PriorityClassName specifies the priority class for scheduling.
+	PriorityClassName string
+	// Volumes are volumes mounted by the pod.
+	Volumes []corev1.Volume
+	// VolumeMounts are container volume mounts.
+	VolumeMounts []corev1.VolumeMount
+	// CPURequest is the container CPU resource request (e.g. "100m").
+	CPURequest string
+	// MemoryRequest is the container memory resource request (e.g. "128Mi").
+	MemoryRequest string
+	// CPULimit is the container CPU resource limit (e.g. "500m").
+	CPULimit string
+	// MemoryLimit is the container memory resource limit (e.g. "256Mi").
+	MemoryLimit string
 }
 
 // podLabels builds pod labels by merging opts.Labels onto standard labels,
@@ -99,11 +131,17 @@ func podLabels(opts PodOptions) map[string]string {
 
 // CreatePod creates a new Pod with the specified options.
 func CreatePod(ctx context.Context, client kubernetes.Interface, opts PodOptions) (*corev1.Pod, error) {
+	resources, err := BuildResourceRequirements(opts.CPURequest, opts.MemoryRequest, opts.CPULimit, opts.MemoryLimit)
+	if err != nil {
+		return nil, err
+	}
+
 	pod := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      opts.PodName,
-			Namespace: opts.Namespace,
-			Labels:    podLabels(opts),
+			Name:        opts.PodName,
+			Namespace:   opts.Namespace,
+			Labels:      podLabels(opts),
+			Annotations: opts.Annotations,
 		},
 		Spec: corev1.PodSpec{
 			Containers: []corev1.Container{
@@ -117,12 +155,24 @@ func CreatePod(ctx context.Context, client kubernetes.Interface, opts PodOptions
 					Args:            opts.Args,
 					Ports:           opts.Ports,
 					Env:             opts.EnvVars,
+					EnvFrom:         opts.EnvFrom,
+					Resources:       resources,
+					VolumeMounts:    opts.VolumeMounts,
+					SecurityContext: opts.ContainerSecurityContext,
 				},
 			},
-			RestartPolicy:      corev1.RestartPolicyNever,
-			HostNetwork:        opts.HostNetwork,
-			NodeSelector:       opts.NodeSelector,
-			ServiceAccountName: opts.ServiceAccount,
+			RestartPolicy:             corev1.RestartPolicyNever,
+			HostNetwork:               opts.HostNetwork,
+			NodeSelector:              opts.NodeSelector,
+			ServiceAccountName:        opts.ServiceAccount,
+			Affinity:                  opts.Affinity,
+			Tolerations:               opts.Tolerations,
+			TopologySpreadConstraints: opts.TopologySpreadConstraints,
+			DNSConfig:                 opts.DNSConfig,
+			DNSPolicy:                 opts.DNSPolicy,
+			SecurityContext:           opts.SecurityContext,
+			PriorityClassName:         opts.PriorityClassName,
+			Volumes:                   opts.Volumes,
 		},
 	}
 

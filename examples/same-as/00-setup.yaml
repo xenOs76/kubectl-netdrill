@@ -1,0 +1,51 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: netdrill-demo
+  labels:
+    environment: test
+    app.kubernetes.io/part-of: netdrill-testing
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: netdrill-tester-sa
+  namespace: netdrill-demo
+  labels:
+    app.kubernetes.io/name: netdrill-tester-sa
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+  namespace: netdrill-demo
+  labels:
+    app: demo
+data:
+  APP_ENV: "staging"
+  LOG_LEVEL: "info"
+  CONFIG_FILE_NAME: "settings.json"
+  settings.json: |
+    {
+      "database": {
+        "host": "postgres.internal",
+        "port": 5432
+      },
+      "features": {
+        "tracing": true,
+        "caching": false
+      }
+    }
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: app-secret
+  namespace: netdrill-demo
+  labels:
+    app: demo
+type: Opaque
+stringData:
+  DB_PASSWORD: "SuperSecretPassword123!"
+  API_KEY: "netdrill-test-api-key"
+  tls.token: "dGVzdC10b2tlbg=="

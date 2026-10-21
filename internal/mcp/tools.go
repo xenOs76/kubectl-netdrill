@@ -37,6 +37,14 @@ type podCreateInput struct {
 	HostNetwork bool `json:"hostNetwork,omitempty" jsonschema:"Use host networking"`
 	// Additional labels on the pod.
 	Labels map[string]string `json:"labels,omitempty" jsonschema:"Additional labels"`
+	// Workload (pod or deployment) to clone settings from.
+	SameAs string `json:"sameAs,omitempty" jsonschema:"Workload to clone settings from"`
+	// Container name within target to clone from.
+	SameAsContainer string `json:"sameAsContainer,omitempty" jsonschema:"Container to clone settings from"`
+	CPURequest      string `json:"cpuRequest,omitempty" jsonschema:"CPU request (e.g. 100m)"`
+	MemoryRequest   string `json:"memoryRequest,omitempty" jsonschema:"Memory request (e.g. 128Mi)"`
+	CPULimit        string `json:"cpuLimit,omitempty" jsonschema:"CPU limit (e.g. 200m)"`
+	MemoryLimit     string `json:"memoryLimit,omitempty" jsonschema:"Memory limit (e.g. 256Mi)"`
 }
 
 // podNameInput specifies a pod by name and namespace.
@@ -75,11 +83,13 @@ type deploymentCreateInput struct {
 	// Replica count (default 1).
 	Replicas *int32 `json:"replicas,omitempty" jsonschema:"Number of replicas (default 1)"`
 	// Additional labels on the Deployment and pod template.
-	Labels        map[string]string `json:"labels,omitempty" jsonschema:"Additional labels"`
-	CPURequest    string            `json:"cpuRequest,omitempty" jsonschema:"CPU request (e.g. 100m)"`
-	MemoryRequest string            `json:"memoryRequest,omitempty" jsonschema:"Memory request (e.g. 128Mi)"`
-	CPULimit      string            `json:"cpuLimit,omitempty" jsonschema:"CPU limit (e.g. 200m)"`
-	MemoryLimit   string            `json:"memoryLimit,omitempty" jsonschema:"Memory limit (e.g. 256Mi)"`
+	Labels          map[string]string `json:"labels,omitempty" jsonschema:"Additional labels"`
+	SameAs          string            `json:"sameAs,omitempty" jsonschema:"Workload to clone settings from"`
+	SameAsContainer string            `json:"sameAsContainer,omitempty" jsonschema:"Container to clone settings from"`
+	CPURequest      string            `json:"cpuRequest,omitempty" jsonschema:"CPU request (e.g. 100m)"`
+	MemoryRequest   string            `json:"memoryRequest,omitempty" jsonschema:"Memory request (e.g. 128Mi)"`
+	CPULimit        string            `json:"cpuLimit,omitempty" jsonschema:"CPU limit (e.g. 200m)"`
+	MemoryLimit     string            `json:"memoryLimit,omitempty" jsonschema:"Memory limit (e.g. 256Mi)"`
 }
 
 // deploymentNameInput specifies a deployment by name and namespace.
@@ -267,6 +277,10 @@ func podConfigFromCreateInput(deps *Deps, in podCreateInput, ns, podName string)
 		Ports:          slices.Clone(in.Ports),
 		HostNetwork:    in.HostNetwork,
 		Labels:         maps.Clone(in.Labels),
+		CPURequest:     in.CPURequest,
+		MemoryRequest:  in.MemoryRequest,
+		CPULimit:       in.CPULimit,
+		MemoryLimit:    in.MemoryLimit,
 	}
 }
 
@@ -293,6 +307,16 @@ func handlePodCreate(ctx context.Context, deps *Deps, in podCreateInput) (*mcp.C
 	podName := defaultPodName(in.PodName)
 
 	cfg := podConfigFromCreateInput(deps, in, ns, podName)
+
+	if in.SameAs != "" {
+		var err error
+
+		ns, err = applyMCPPodSameAs(ctx, deps, in, ns, &cfg)
+		if err != nil {
+			return nil, podCreateOutput{}, err
+		}
+	}
+
 	opts := k8s.PodOptionsFromConfig(cfg)
 
 	_, err := k8s.CreatePod(ctx, deps.Client, opts)
@@ -316,6 +340,15 @@ func handleRunCreate(ctx context.Context, deps *Deps, in runCreateInput) (*mcp.C
 	podName := defaultPodName(in.PodName)
 
 	cfg := podConfigFromCreateInput(deps, in.podCreateInput, ns, podName)
+
+	if in.SameAs != "" {
+		var err error
+
+		ns, err = applyMCPPodSameAs(ctx, deps, in.podCreateInput, ns, &cfg)
+		if err != nil {
+			return nil, podCreateOutput{}, err
+		}
+	}
 
 	if len(in.Command) > 0 {
 		cfg.Command = slices.Clone(in.Command)
@@ -470,6 +503,15 @@ func handleDeploymentCreate(
 		MemoryLimit:   in.MemoryLimit,
 	}
 
+	if in.SameAs != "" {
+		var err error
+
+		ns, err = applyMCPDeploymentSameAs(ctx, deps, in, ns, &cfg)
+		if err != nil {
+			return nil, podCreateOutput{}, err
+		}
+	}
+
 	opts := k8s.DeploymentOptionsFromConfig(cfg)
 
 	_, err := k8s.CreateDeployment(ctx, deps.Client, opts)
@@ -485,6 +527,98 @@ func handleDeploymentCreate(
 	}
 
 	return nil, out, nil
+}
+
+func applyMCPPodSameAs(
+	ctx context.Context,
+	deps *Deps,
+	in podCreateInput,
+	ns string,
+	cfg *netdrill.PodConfig,
+) (string, error) {
+	target, err := k8s.ParseSameAsTarget(in.SameAs, "pod", ns)
+	if err != nil {
+		return ns, fmt.Errorf("parsing sameAs: %w", err)
+	}
+
+	if in.Namespace == "" && target.Namespace != "" {
+		ns = target.Namespace
+		cfg.Namespace = target.Namespace
+	}
+
+	workload, err := k8s.FetchSameAsWorkload(ctx, deps.Client, target)
+	if err != nil {
+		return ns, fmt.Errorf("fetching sameAs workload: %w", err)
+	}
+
+	overrides := k8s.SameAsOverrides{
+		HasServiceAccount: in.ServiceAccount != "",
+		HasHostNetwork:    in.HostNetwork,
+		HasNodeSelector:   len(in.NodeSelector) > 0,
+		HasPorts:          len(in.Ports) > 0,
+		HasEnv:            len(in.Env) > 0,
+		HasLabels:         len(in.Labels) > 0,
+		HasCPURequest:     in.CPURequest != "",
+		HasMemoryRequest:  in.MemoryRequest != "",
+		HasCPULimit:       in.CPULimit != "",
+		HasMemoryLimit:    in.MemoryLimit != "",
+	}
+
+	if err := k8s.ApplySameAsWorkload(workload, in.SameAsContainer, overrides, cfg); err != nil {
+		return ns, fmt.Errorf("applying sameAs: %w", err)
+	}
+
+	return ns, nil
+}
+
+func applyMCPDeploymentSameAs(
+	ctx context.Context,
+	deps *Deps,
+	in deploymentCreateInput,
+	ns string,
+	cfg *netdrill.DeploymentConfig,
+) (string, error) {
+	target, err := k8s.ParseSameAsTarget(in.SameAs, "deployment", ns)
+	if err != nil {
+		return ns, fmt.Errorf("parsing sameAs: %w", err)
+	}
+
+	if in.Namespace == "" && target.Namespace != "" {
+		ns = target.Namespace
+		cfg.Namespace = target.Namespace
+		cfg.PodConfig.Namespace = target.Namespace
+	}
+
+	workload, err := k8s.FetchSameAsWorkload(ctx, deps.Client, target)
+	if err != nil {
+		return ns, fmt.Errorf("fetching sameAs workload: %w", err)
+	}
+
+	overrides := k8s.SameAsOverrides{
+		HasServiceAccount: in.ServiceAccount != "",
+		HasHostNetwork:    in.HostNetwork,
+		HasNodeSelector:   len(in.NodeSelector) > 0,
+		HasPorts:          len(in.Ports) > 0,
+		HasEnv:            len(in.Env) > 0,
+		HasLabels:         len(in.Labels) > 0,
+		HasCPURequest:     in.CPURequest != "",
+		HasMemoryRequest:  in.MemoryRequest != "",
+		HasCPULimit:       in.CPULimit != "",
+		HasMemoryLimit:    in.MemoryLimit != "",
+		HasReplicas:       in.Replicas != nil,
+	}
+
+	if overrides.HasLabels && len(cfg.PodConfig.Labels) == 0 && len(cfg.Labels) > 0 {
+		cfg.PodConfig.Labels = maps.Clone(cfg.Labels)
+	}
+
+	if err := k8s.ApplySameAsWorkload(workload, in.SameAsContainer, overrides, &cfg.PodConfig); err != nil {
+		return ns, fmt.Errorf("applying sameAs: %w", err)
+	}
+
+	k8s.SyncDeploymentFromPodConfig(workload, overrides, cfg)
+
+	return ns, nil
 }
 
 // handleDeploymentDelete handles the netdrill_deployment_delete tool invocation.

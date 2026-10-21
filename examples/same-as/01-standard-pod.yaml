@@ -1,0 +1,65 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: demo-web-pod
+  namespace: netdrill-demo
+  labels:
+    app: web-server
+    tier: frontend
+    environment: staging
+    release: stable
+  annotations:
+    monitoring.io/scrape: "true"
+    team.owner: "sre-core"
+    documentation.url: "https://wiki.internal/services/web-server"
+spec:
+  serviceAccountName: netdrill-tester-sa
+  nodeSelector:
+    kubernetes.io/os: linux
+  tolerations:
+    - key: "app.kubernetes.io/workload"
+      operator: "Equal"
+      value: "web"
+      effect: "NoSchedule"
+  containers:
+    - name: web
+      image: registry.k8s.io/e2e-test-images/agnhost:2.45
+      args: ["netexec", "--http-port=8080"]
+      ports:
+        - name: http
+          containerPort: 8080
+          protocol: TCP
+        - name: https
+          containerPort: 8443
+          protocol: TCP
+      resources:
+        requests:
+          cpu: 150m
+          memory: 128Mi
+        limits:
+          cpu: 300m
+          memory: 256Mi
+      env:
+        - name: HTTP_PORT
+          value: "8080"
+        - name: SERVICE_NAME
+          value: "web-server"
+      envFrom:
+        - configMapRef:
+            name: app-config
+        - secretRef:
+            name: app-secret
+      volumeMounts:
+        - name: config-volume
+          mountPath: /etc/app/config
+          readOnly: true
+        - name: secret-volume
+          mountPath: /etc/app/secrets
+          readOnly: true
+  volumes:
+    - name: config-volume
+      configMap:
+        name: app-config
+    - name: secret-volume
+      secret:
+        secretName: app-secret
