@@ -302,28 +302,63 @@ func completePort(_ *cobra.Command, _ []string, toComplete string) ([]string, co
 	return filterPrefix(samplePorts, toComplete), cobra.ShellCompDirectiveNoFileComp
 }
 
+func commandUsedKeys(cmd *cobra.Command, flagName string) map[string]struct{} {
+	if cmd == nil {
+		return nil
+	}
+
+	existing, err := cmd.Flags().GetStringToString(flagName)
+	if err != nil || len(existing) == 0 {
+		return nil
+	}
+
+	used := make(map[string]struct{}, len(existing))
+	for k := range existing {
+		used[k] = struct{}{}
+	}
+
+	return used
+}
+
+func labelsCandidatesFromCommand(cmd *cobra.Command) []string {
+	workload, err := fetchSameAsWorkloadFromCommand(cmd)
+	if err != nil || workload == nil {
+		return sampleLabels
+	}
+
+	filtered := k8s.FilterLabels(workload.Labels)
+	if len(filtered) == 0 {
+		return sampleLabels
+	}
+
+	candidates := make([]string, 0, len(filtered))
+	for k, v := range filtered {
+		if v != "" {
+			candidates = append(candidates, k+"="+v)
+		} else {
+			candidates = append(candidates, k)
+		}
+	}
+
+	slices.Sort(candidates)
+
+	return candidates
+}
+
 // completeLabels provides autocompletion suggestions for the --labels flag.
-//
-//nolint:dupl // completion logic for labels and env flags is kept explicit
+// If --same-as is specified, it suggests filtered labels from the target workload;
+// otherwise it falls back to sampleLabels.
 func completeLabels(cmd *cobra.Command, _ []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 	if strings.Contains(toComplete, ",") {
 		return nil, cobra.ShellCompDirectiveNoFileComp
 	}
 
-	var usedKeys map[string]struct{}
-
-	if cmd != nil {
-		if existing, err := cmd.Flags().GetStringToString("labels"); err == nil && len(existing) > 0 {
-			usedKeys = make(map[string]struct{}, len(existing))
-			for k := range existing {
-				usedKeys[k] = struct{}{}
-			}
-		}
-	}
+	usedKeys := commandUsedKeys(cmd, "labels")
+	candidates := labelsCandidatesFromCommand(cmd)
 
 	var suggestions []string
 
-	for _, l := range sampleLabels {
+	for _, l := range candidates {
 		key, _, _ := strings.Cut(l, "=")
 		if _, used := usedKeys[key]; used {
 			continue
@@ -342,23 +377,12 @@ func completeLabels(cmd *cobra.Command, _ []string, toComplete string) ([]string
 }
 
 // completeEnv provides autocompletion suggestions for the --env flag.
-//
-//nolint:dupl // completion logic for labels and env flags is kept explicit
 func completeEnv(cmd *cobra.Command, _ []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 	if strings.Contains(toComplete, ",") {
 		return nil, cobra.ShellCompDirectiveNoFileComp
 	}
 
-	var usedKeys map[string]struct{}
-
-	if cmd != nil {
-		if existing, err := cmd.Flags().GetStringToString("env"); err == nil && len(existing) > 0 {
-			usedKeys = make(map[string]struct{}, len(existing))
-			for k := range existing {
-				usedKeys[k] = struct{}{}
-			}
-		}
-	}
+	usedKeys := commandUsedKeys(cmd, "env")
 
 	var suggestions []string
 
@@ -703,6 +727,39 @@ func completeSameAs(cmd *cobra.Command, _ []string, toComplete string) ([]string
 	}
 }
 
+// fetchSameAsWorkloadFromCommand resolves and fetches the target workload specified in --same-as,
+// with a 2-second timeout.
+func fetchSameAsWorkloadFromCommand(cmd *cobra.Command) (*k8s.SameAsWorkload, error) {
+	if cmd == nil {
+		return nil, errors.New("command is nil")
+	}
+
+	target, err := cmd.Flags().GetString("same-as")
+	if err != nil || strings.TrimSpace(target) == "" {
+		return nil, errors.New("same-as flag not set")
+	}
+
+	defaultKind := "pod"
+	if cmd.Name() == "deployment" {
+		defaultKind = "deployment"
+	}
+
+	targetInfo, err := k8s.ParseSameAsTarget(target, defaultKind, getTargetNamespace())
+	if err != nil {
+		return nil, err
+	}
+
+	client, _, err := k8s.ClientProvider(ConfigFlags)
+	if err != nil {
+		return nil, err
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
+	defer cancel()
+
+	return k8s.FetchSameAsWorkload(ctx, client, targetInfo)
+}
+
 // completeSameAsContainer provides autocompletion suggestions for the --same-as-container flag.
 // It inspects the target workload specified in --same-as and proposes its container names.
 func completeSameAsContainer(cmd *cobra.Command, _ []string, toComplete string) ([]string, cobra.ShellCompDirective) {
@@ -715,25 +772,7 @@ func completeSameAsContainer(cmd *cobra.Command, _ []string, toComplete string) 
 		return nil, cobra.ShellCompDirectiveNoFileComp
 	}
 
-	defaultKind := "pod"
-	if cmd.Name() == "deployment" {
-		defaultKind = "deployment"
-	}
-
-	targetInfo, err := k8s.ParseSameAsTarget(target, defaultKind, getTargetNamespace())
-	if err != nil {
-		return nil, cobra.ShellCompDirectiveError
-	}
-
-	client, _, err := k8s.ClientProvider(ConfigFlags)
-	if err != nil {
-		return nil, cobra.ShellCompDirectiveError
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
-	defer cancel()
-
-	workload, err := k8s.FetchSameAsWorkload(ctx, client, targetInfo)
+	workload, err := fetchSameAsWorkloadFromCommand(cmd)
 	if err != nil {
 		return nil, cobra.ShellCompDirectiveError
 	}
