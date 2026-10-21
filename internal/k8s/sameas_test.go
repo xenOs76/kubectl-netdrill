@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/xenos76/kubectl-netdrill/internal/netdrill"
@@ -379,7 +380,7 @@ func TestApplySameAsWorkload_ClonesAllSettings(t *testing.T) {
 		"kubernetes.io/os": "linux",
 		"node-role":        "worker",
 	}, cfg.NodeSelector)
-	assert.Equal(t, map[string]string{"app": "source", "tier": "backend"}, cfg.Labels)
+	assert.Nil(t, cfg.Labels)
 	assert.Equal(t, map[string]string{"custom.io/note": "test-annotation"}, cfg.Annotations)
 	assert.Equal(t, []int32{8080, 9090}, cfg.Ports)
 
@@ -449,9 +450,8 @@ func TestApplySameAsWorkload_ExplicitOverrides(t *testing.T) {
 		"new-key":          "val",
 	}, cfg.NodeSelector)
 	assert.Equal(t, map[string]string{
-		"app":  "overridden",
-		"tier": "backend",
-		"env":  "debug",
+		"app": "overridden",
+		"env": "debug",
 	}, cfg.Labels)
 
 	foundLogLevel := false
@@ -529,4 +529,49 @@ func TestFetchSameAsWorkload_FakeClient(t *testing.T) {
 		_, err := FetchSameAsWorkload(ctx, client, TargetInfo{Namespace: "default", Kind: "pod", Name: "missing"})
 		require.Error(t, err)
 	})
+}
+
+func TestApplySameAsDeploymentConfig_PreserveLabels(t *testing.T) {
+	t.Parallel()
+
+	ctx := t.Context()
+	client := fake.NewSimpleClientset(
+		&appsv1.Deployment{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "api-deploy",
+				Namespace: "default",
+			},
+			Spec: appsv1.DeploymentSpec{
+				Template: corev1.PodTemplateSpec{
+					ObjectMeta: metav1.ObjectMeta{
+						Labels: map[string]string{
+							"app":  "api",
+							"tier": "backend",
+						},
+					},
+					Spec: corev1.PodSpec{
+						Containers: []corev1.Container{{Name: "web"}},
+					},
+				},
+			},
+		},
+	)
+
+	var lbls map[string]string
+
+	cmd := &cobra.Command{}
+	cmd.Flags().StringToStringVar(&lbls, "labels", map[string]string{"env": "test", "tier": "override"}, "")
+	_ = cmd.Flags().Set("labels", "env=test,tier=override")
+
+	cfg := &netdrill.DeploymentConfig{
+		Labels: map[string]string{"env": "test", "tier": "override"},
+	}
+
+	_, err := ApplySameAsDeploymentConfig(ctx, client, cmd, "api-deploy", "", "default", cfg)
+	require.NoError(t, err)
+
+	assert.Equal(t, "test", cfg.Labels["env"])
+	assert.Equal(t, "override", cfg.Labels["tier"])
+	assert.NotContains(t, cfg.Labels, "app")
+	assert.Equal(t, cfg.Labels, cfg.PodConfig.Labels)
 }

@@ -229,34 +229,33 @@ log_pass "All test workloads are ready."
 log_step "3. Testing Standard Pod Cloning (--same-as demo-web-pod)..."
 kubectl delete pod demo-web-pod-clone -n "${NAMESPACE}" --ignore-not-found=true --wait=true >/dev/null 2>&1 || true
 
-"${NETDRILL_BIN}" pod demo-web-pod-clone -n "${NAMESPACE}" --same-as demo-web-pod >/dev/null 2>&1 &
-WAIT_PID=$!
-sleep 3
-kill "${WAIT_PID}" 2>/dev/null || true
+if ! "${NETDRILL_BIN}" pod demo-web-pod-clone -n "${NAMESPACE}" --same-as demo-web-pod >/dev/null 2>&1; then
+    log_fail "Failed to execute: netdrill pod demo-web-pod-clone --same-as demo-web-pod"
+fi
 
 # Assertions
-IMAGE=$(kubectl get pod demo-web-pod-clone -n "${NAMESPACE}" -o jsonpath='{.spec.containers[0].image}')
+IMAGE=$(kubectl get pod demo-web-pod-clone -n "${NAMESPACE}" -o jsonpath='{.spec.containers[0].image}' 2>/dev/null || true)
 if [[ "${IMAGE}" == *"netdrill"* ]]; then
     log_pass "Image retained netdrill default: ${IMAGE}"
 else
     log_fail "Expected netdrill image, got: ${IMAGE}"
 fi
 
-SA=$(kubectl get pod demo-web-pod-clone -n "${NAMESPACE}" -o jsonpath='{.spec.serviceAccountName}')
+SA=$(kubectl get pod demo-web-pod-clone -n "${NAMESPACE}" -o jsonpath='{.spec.serviceAccountName}' 2>/dev/null || true)
 if [[ "${SA}" == "netdrill-tester-sa" ]]; then
     log_pass "ServiceAccount cloned: ${SA}"
 else
     log_fail "Expected ServiceAccount netdrill-tester-sa, got: ${SA}"
 fi
 
-PORTS=$(kubectl get pod demo-web-pod-clone -n "${NAMESPACE}" -o jsonpath='{.spec.containers[0].ports[*].containerPort}')
+PORTS=$(kubectl get pod demo-web-pod-clone -n "${NAMESPACE}" -o jsonpath='{.spec.containers[0].ports[*].containerPort}' 2>/dev/null || true)
 if [[ "${PORTS}" =~ 8080 && "${PORTS}" =~ 8443 ]]; then
     log_pass "Container ports cloned: ${PORTS}"
 else
     log_fail "Expected ports 8080 and 8443, got: ${PORTS}"
 fi
 
-CONFIG_MOUNT=$(kubectl get pod demo-web-pod-clone -n "${NAMESPACE}" -o jsonpath='{.spec.containers[0].volumeMounts[?(@.name=="config-volume")].mountPath}')
+CONFIG_MOUNT=$(kubectl get pod demo-web-pod-clone -n "${NAMESPACE}" -o jsonpath='{.spec.containers[0].volumeMounts[?(@.name=="config-volume")].mountPath}' 2>/dev/null || true)
 if [[ "${CONFIG_MOUNT}" == "/etc/app/config" ]]; then
     log_pass "Safe ConfigMap volume mount cloned at ${CONFIG_MOUNT}"
 else
@@ -269,19 +268,18 @@ fi
 log_step "4. Testing Multi-Container Targeting (--same-as-container envoy-proxy)..."
 kubectl delete pod demo-multi-container-clone -n "${NAMESPACE}" --ignore-not-found=true --wait=true >/dev/null 2>&1 || true
 
-"${NETDRILL_BIN}" pod demo-multi-container-clone -n "${NAMESPACE}" --same-as demo-multi-container --same-as-container envoy-proxy >/dev/null 2>&1 &
-WAIT_PID=$!
-sleep 3
-kill "${WAIT_PID}" 2>/dev/null || true
+if ! "${NETDRILL_BIN}" pod demo-multi-container-clone -n "${NAMESPACE}" --same-as demo-multi-container --same-as-container envoy-proxy >/dev/null 2>&1; then
+    log_fail "Failed to execute: netdrill pod demo-multi-container-clone --same-as demo-multi-container --same-as-container envoy-proxy"
+fi
 
-ENVOY_PORTS=$(kubectl get pod demo-multi-container-clone -n "${NAMESPACE}" -o jsonpath='{.spec.containers[0].ports[*].containerPort}')
+ENVOY_PORTS=$(kubectl get pod demo-multi-container-clone -n "${NAMESPACE}" -o jsonpath='{.spec.containers[0].ports[*].containerPort}' 2>/dev/null || true)
 if [[ "${ENVOY_PORTS}" =~ 10000 && "${ENVOY_PORTS}" =~ 9901 ]]; then
     log_pass "Cloned envoy-proxy specific ports (10000, 9901): ${ENVOY_PORTS}"
 else
     log_fail "Expected ports 10000 and 9901 for envoy-proxy, got: ${ENVOY_PORTS}"
 fi
 
-ENVOY_ROLE=$(kubectl get pod demo-multi-container-clone -n "${NAMESPACE}" -o jsonpath='{.spec.containers[0].env[?(@.name=="SERVICE_ROLE")].value}')
+ENVOY_ROLE=$(kubectl get pod demo-multi-container-clone -n "${NAMESPACE}" -o jsonpath='{.spec.containers[0].env[?(@.name=="SERVICE_ROLE")].value}' 2>/dev/null || true)
 if [[ "${ENVOY_ROLE}" == "sidecar-proxy" ]]; then
     log_pass "Cloned envoy-proxy specific environment variable: SERVICE_ROLE=${ENVOY_ROLE}"
 else
@@ -294,28 +292,27 @@ fi
 log_step "5. Testing Advanced Scheduling, SecurityContext, and DNS..."
 kubectl delete pod demo-scheduling-pod-clone -n "${NAMESPACE}" --ignore-not-found=true --wait=true >/dev/null 2>&1 || true
 
-"${NETDRILL_BIN}" pod demo-scheduling-pod-clone -n "${NAMESPACE}" --same-as demo-scheduling-pod >/dev/null 2>&1 &
-WAIT_PID=$!
-sleep 3
-kill "${WAIT_PID}" 2>/dev/null || true
+if ! "${NETDRILL_BIN}" pod demo-scheduling-pod-clone -n "${NAMESPACE}" --same-as demo-scheduling-pod >/dev/null 2>&1; then
+    log_fail "Failed to execute: netdrill pod demo-scheduling-pod-clone --same-as demo-scheduling-pod"
+fi
 
-RUN_AS_USER=$(kubectl get pod demo-scheduling-pod-clone -n "${NAMESPACE}" -o jsonpath='{.spec.securityContext.runAsUser}')
-RUN_AS_NON_ROOT=$(kubectl get pod demo-scheduling-pod-clone -n "${NAMESPACE}" -o jsonpath='{.spec.securityContext.runAsNonRoot}')
+RUN_AS_USER=$(kubectl get pod demo-scheduling-pod-clone -n "${NAMESPACE}" -o jsonpath='{.spec.securityContext.runAsUser}' 2>/dev/null || true)
+RUN_AS_NON_ROOT=$(kubectl get pod demo-scheduling-pod-clone -n "${NAMESPACE}" -o jsonpath='{.spec.securityContext.runAsNonRoot}' 2>/dev/null || true)
 if [[ "${RUN_AS_USER}" == "10001" && "${RUN_AS_NON_ROOT}" == "true" ]]; then
     log_pass "Pod securityContext cloned: runAsUser=${RUN_AS_USER}, runAsNonRoot=${RUN_AS_NON_ROOT}"
 else
     log_fail "Expected runAsUser=10001, runAsNonRoot=true; got: user=${RUN_AS_USER}, nonRoot=${RUN_AS_NON_ROOT}"
 fi
 
-DNS_POLICY=$(kubectl get pod demo-scheduling-pod-clone -n "${NAMESPACE}" -o jsonpath='{.spec.dnsPolicy}')
-DNS_NS=$(kubectl get pod demo-scheduling-pod-clone -n "${NAMESPACE}" -o jsonpath='{.spec.dnsConfig.nameservers[*]}')
+DNS_POLICY=$(kubectl get pod demo-scheduling-pod-clone -n "${NAMESPACE}" -o jsonpath='{.spec.dnsPolicy}' 2>/dev/null || true)
+DNS_NS=$(kubectl get pod demo-scheduling-pod-clone -n "${NAMESPACE}" -o jsonpath='{.spec.dnsConfig.nameservers[*]}' 2>/dev/null || true)
 if [[ "${DNS_POLICY}" == "ClusterFirstWithHostNet" && "${DNS_NS}" == *"1.1.1.1"* ]]; then
     log_pass "DNS Policy and custom nameservers cloned: policy=${DNS_POLICY}, nameservers=${DNS_NS}"
 else
     log_fail "Expected ClusterFirstWithHostNet and 1.1.1.1, got: policy=${DNS_POLICY}, ns=${DNS_NS}"
 fi
 
-NODE_AFFINITY=$(kubectl get pod demo-scheduling-pod-clone -n "${NAMESPACE}" -o jsonpath='{.spec.affinity.nodeAffinity}')
+NODE_AFFINITY=$(kubectl get pod demo-scheduling-pod-clone -n "${NAMESPACE}" -o jsonpath='{.spec.affinity.nodeAffinity}' 2>/dev/null || true)
 if [[ -n "${NODE_AFFINITY}" ]]; then
     log_pass "NodeAffinity rules cloned successfully."
 else
@@ -328,12 +325,11 @@ fi
 log_step "6. Testing Storage Safety & PVC Exclusion..."
 kubectl delete pod demo-storage-pod-clone -n "${NAMESPACE}" --ignore-not-found=true --wait=true >/dev/null 2>&1 || true
 
-"${NETDRILL_BIN}" pod demo-storage-pod-clone -n "${NAMESPACE}" --same-as demo-storage-pod >/dev/null 2>&1 &
-WAIT_PID=$!
-sleep 3
-kill "${WAIT_PID}" 2>/dev/null || true
+if ! "${NETDRILL_BIN}" pod demo-storage-pod-clone -n "${NAMESPACE}" --same-as demo-storage-pod >/dev/null 2>&1; then
+    log_fail "Failed to execute: netdrill pod demo-storage-pod-clone --same-as demo-storage-pod"
+fi
 
-VOLUMES=$(kubectl get pod demo-storage-pod-clone -n "${NAMESPACE}" -o jsonpath='{.spec.volumes[*].name}')
+VOLUMES=$(kubectl get pod demo-storage-pod-clone -n "${NAMESPACE}" -o jsonpath='{.spec.volumes[*].name}' 2>/dev/null || true)
 if [[ "${VOLUMES}" =~ "config-volume" && "${VOLUMES}" =~ "temp-storage" ]]; then
     log_pass "Safe volumes cloned: config-volume, temp-storage"
 else
@@ -352,16 +348,18 @@ fi
 log_step "7. Testing Deployment-to-Deployment Cloning..."
 kubectl delete deployment demo-order-api-clone -n "${NAMESPACE}" --ignore-not-found=true --wait=true >/dev/null 2>&1 || true
 
-"${NETDRILL_BIN}" deployment demo-order-api-clone -n "${NAMESPACE}" --same-as demo-order-api >/dev/null
+if ! "${NETDRILL_BIN}" deployment demo-order-api-clone -n "${NAMESPACE}" --same-as demo-order-api >/dev/null 2>&1; then
+    log_fail "Failed to execute: netdrill deployment demo-order-api-clone --same-as demo-order-api"
+fi
 
-REPLICAS=$(kubectl get deployment demo-order-api-clone -n "${NAMESPACE}" -o jsonpath='{.spec.replicas}')
+REPLICAS=$(kubectl get deployment demo-order-api-clone -n "${NAMESPACE}" -o jsonpath='{.spec.replicas}' 2>/dev/null || true)
 if [[ "${REPLICAS}" == "2" ]]; then
     log_pass "Deployment replicas cloned: ${REPLICAS}"
 else
     log_fail "Expected 2 replicas, got: ${REPLICAS}"
 fi
 
-CPU_REQ=$(kubectl get deployment demo-order-api-clone -n "${NAMESPACE}" -o jsonpath='{.spec.template.spec.containers[0].resources.requests.cpu}')
+CPU_REQ=$(kubectl get deployment demo-order-api-clone -n "${NAMESPACE}" -o jsonpath='{.spec.template.spec.containers[0].resources.requests.cpu}' 2>/dev/null || true)
 if [[ "${CPU_REQ}" == "250m" ]]; then
     log_pass "Deployment template CPU request cloned: ${CPU_REQ}"
 else
@@ -374,16 +372,15 @@ fi
 log_step "8. Testing Deployment-to-Pod Cross-Kind Cloning..."
 kubectl delete pod demo-order-api-pod-clone -n "${NAMESPACE}" --ignore-not-found=true --wait=true >/dev/null 2>&1 || true
 
-"${NETDRILL_BIN}" pod demo-order-api-pod-clone -n "${NAMESPACE}" --same-as deployment/demo-order-api >/dev/null 2>&1 &
-WAIT_PID=$!
-sleep 3
-kill "${WAIT_PID}" 2>/dev/null || true
+if ! "${NETDRILL_BIN}" pod demo-order-api-pod-clone -n "${NAMESPACE}" --same-as deployment/demo-order-api >/dev/null 2>&1; then
+    log_fail "Failed to execute: netdrill pod demo-order-api-pod-clone --same-as deployment/demo-order-api"
+fi
 
-POD_APP_LABEL=$(kubectl get pod demo-order-api-pod-clone -n "${NAMESPACE}" -o jsonpath='{.metadata.labels.app}')
-if [[ "${POD_APP_LABEL}" == "order-api" ]]; then
-    log_pass "Pod successfully cloned template labels from Deployment: app=${POD_APP_LABEL}"
+POD_APP_LABEL=$(kubectl get pod demo-order-api-pod-clone -n "${NAMESPACE}" -o jsonpath='{.metadata.labels.app}' 2>/dev/null || true)
+if [[ -z "${POD_APP_LABEL}" ]]; then
+    log_pass "Pod safely did not inherit Service selector label (app is empty)"
 else
-    log_fail "Expected app=order-api label on pod, got: ${POD_APP_LABEL}"
+    log_fail "Expected app label to be omitted to prevent Service selector matching, got: ${POD_APP_LABEL}"
 fi
 
 # ------------------------------------------------------------------------------
@@ -392,40 +389,39 @@ fi
 log_step "9. Testing Explicit Flag Overrides..."
 kubectl delete pod demo-web-pod-override-clone -n "${NAMESPACE}" --ignore-not-found=true --wait=true >/dev/null 2>&1 || true
 
-"${NETDRILL_BIN}" pod demo-web-pod-override-clone -n "${NAMESPACE}" \
+if ! "${NETDRILL_BIN}" pod demo-web-pod-override-clone -n "${NAMESPACE}" \
     --same-as demo-web-pod \
     --cpu-request 50m \
     --port 3000 \
     --env HTTP_PORT=3000 \
     --env EXTRA_KEY=custom-value \
-    --labels environment=override >/dev/null 2>&1 &
-WAIT_PID=$!
-sleep 3
-kill "${WAIT_PID}" 2>/dev/null || true
+    --labels environment=override >/dev/null 2>&1; then
+    log_fail "Failed to execute: netdrill pod demo-web-pod-override-clone with overrides"
+fi
 
-OVERRIDE_CPU=$(kubectl get pod demo-web-pod-override-clone -n "${NAMESPACE}" -o jsonpath='{.spec.containers[0].resources.requests.cpu}')
+OVERRIDE_CPU=$(kubectl get pod demo-web-pod-override-clone -n "${NAMESPACE}" -o jsonpath='{.spec.containers[0].resources.requests.cpu}' 2>/dev/null || true)
 if [[ "${OVERRIDE_CPU}" == "50m" ]]; then
     log_pass "CPU request override applied: ${OVERRIDE_CPU} (overrode 150m)"
 else
     log_fail "Expected CPU request 50m, got: ${OVERRIDE_CPU}"
 fi
 
-OVERRIDE_PORT=$(kubectl get pod demo-web-pod-override-clone -n "${NAMESPACE}" -o jsonpath='{.spec.containers[0].ports[0].containerPort}')
+OVERRIDE_PORT=$(kubectl get pod demo-web-pod-override-clone -n "${NAMESPACE}" -o jsonpath='{.spec.containers[0].ports[0].containerPort}' 2>/dev/null || true)
 if [[ "${OVERRIDE_PORT}" == "3000" ]]; then
     log_pass "Container port override applied: ${OVERRIDE_PORT} (overrode 8080/8443)"
 else
     log_fail "Expected containerPort 3000, got: ${OVERRIDE_PORT}"
 fi
 
-OVERRIDE_ENV=$(kubectl get pod demo-web-pod-override-clone -n "${NAMESPACE}" -o jsonpath='{.spec.containers[0].env[?(@.name=="HTTP_PORT")].value}')
-APPENDED_ENV=$(kubectl get pod demo-web-pod-override-clone -n "${NAMESPACE}" -o jsonpath='{.spec.containers[0].env[?(@.name=="EXTRA_KEY")].value}')
+OVERRIDE_ENV=$(kubectl get pod demo-web-pod-override-clone -n "${NAMESPACE}" -o jsonpath='{.spec.containers[0].env[?(@.name=="HTTP_PORT")].value}' 2>/dev/null || true)
+APPENDED_ENV=$(kubectl get pod demo-web-pod-override-clone -n "${NAMESPACE}" -o jsonpath='{.spec.containers[0].env[?(@.name=="EXTRA_KEY")].value}' 2>/dev/null || true)
 if [[ "${OVERRIDE_ENV}" == "3000" && "${APPENDED_ENV}" == "custom-value" ]]; then
     log_pass "Environment variables merged and overridden correctly: HTTP_PORT=${OVERRIDE_ENV}, EXTRA_KEY=${APPENDED_ENV}"
 else
     log_fail "Expected HTTP_PORT=3000 and EXTRA_KEY=custom-value, got: HTTP_PORT=${OVERRIDE_ENV}, EXTRA_KEY=${APPENDED_ENV}"
 fi
 
-OVERRIDE_LABEL=$(kubectl get pod demo-web-pod-override-clone -n "${NAMESPACE}" -o jsonpath='{.metadata.labels.environment}')
+OVERRIDE_LABEL=$(kubectl get pod demo-web-pod-override-clone -n "${NAMESPACE}" -o jsonpath='{.metadata.labels.environment}' 2>/dev/null || true)
 if [[ "${OVERRIDE_LABEL}" == "override" ]]; then
     log_pass "Label override applied: environment=${OVERRIDE_LABEL}"
 else

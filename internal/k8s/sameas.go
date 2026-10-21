@@ -359,19 +359,11 @@ func applyNetworkAndNode(spec *corev1.PodSpec, overrides SameAsOverrides, cfg *n
 }
 
 func applyLabelsAndAnnotations(workload *SameAsWorkload, overrides SameAsOverrides, cfg *netdrill.PodConfig) {
-	filteredLabels := FilterLabels(workload.Labels)
-	if filteredLabels == nil {
-		filteredLabels = make(map[string]string)
-	}
-
-	if overrides.HasLabels {
-		for k, v := range cfg.Labels {
-			filteredLabels[k] = v
-		}
-	}
-
-	if len(filteredLabels) > 0 {
-		cfg.Labels = filteredLabels
+	// Workload labels are not inherited by default to prevent cloned pods
+	// from matching production Service selectors and receiving live traffic.
+	// Explicitly supplied cfg.Labels / --labels are preserved unchanged.
+	if !overrides.HasLabels {
+		cfg.Labels = nil
 	}
 
 	cfg.Annotations = FilterAnnotations(workload.Annotations)
@@ -545,7 +537,8 @@ func ApplySameAsPodConfig(
 	return &target, nil
 }
 
-func syncDeploymentFromPodConfig(workload *SameAsWorkload, overrides SameAsOverrides, cfg *netdrill.DeploymentConfig) {
+// SyncDeploymentFromPodConfig synchronizes DeploymentConfig fields from its embedded PodConfig and the target workload.
+func SyncDeploymentFromPodConfig(workload *SameAsWorkload, overrides SameAsOverrides, cfg *netdrill.DeploymentConfig) {
 	if !overrides.HasReplicas && workload.Replicas != nil {
 		cfg.Replicas = workload.Replicas
 	}
@@ -566,7 +559,7 @@ func syncDeploymentFromPodConfig(workload *SameAsWorkload, overrides SameAsOverr
 		cfg.MemoryLimit = cfg.PodConfig.MemoryLimit
 	}
 
-	if !overrides.HasLabels && len(cfg.PodConfig.Labels) > 0 {
+	if len(cfg.PodConfig.Labels) > 0 {
 		cfg.Labels = cfg.PodConfig.Labels
 	}
 }
@@ -599,11 +592,15 @@ func ApplySameAsDeploymentConfig(
 
 	overrides := OverridesFromCommand(cmd)
 
+	if overrides.HasLabels && len(cfg.PodConfig.Labels) == 0 && len(cfg.Labels) > 0 {
+		cfg.PodConfig.Labels = maps.Clone(cfg.Labels)
+	}
+
 	if err := ApplySameAsWorkload(workload, containerName, overrides, &cfg.PodConfig); err != nil {
 		return nil, err
 	}
 
-	syncDeploymentFromPodConfig(workload, overrides, cfg)
+	SyncDeploymentFromPodConfig(workload, overrides, cfg)
 
 	return &target, nil
 }

@@ -64,7 +64,7 @@ alias netdrill="./dist/kubectl-netdrill"
 
 ### Drill 1: Clone a Standard Pod
 
-Clone operational settings from `demo-web-pod`. The troubleshooting pod runs netdrill image while copying ports, env, SA, and labels:
+Clone operational settings from `demo-web-pod`. The troubleshooting pod runs netdrill image while copying ports, env, and SA (workload labels are not inherited by default to prevent Service selector collisions):
 
 ```bash
 netdrill pod demo-web-pod-clone -n netdrill-demo --same-as demo-web-pod
@@ -81,12 +81,13 @@ Notice:
 - Cloned ports `8080` and `8443`.
 - Cloned environment variables (`HTTP_PORT`, `SERVICE_NAME`) and `envFrom` (ConfigMap `app-config` and Secret `app-secret`).
 - Mounted `/etc/app/config` and `/etc/app/secrets`.
+- Workload labels are omitted by default to prevent the debug pod from receiving live traffic from Services. Use `--labels` if explicit labels are needed.
 
 ---
 
 ### Drill 2: Cross-Namespace Cloning with Syntax Variations
 
-Run netdrill in your current default namespace while cloning from the `netdrill-demo` namespace:
+When omitting `-n`, the cloned pod is created in the target workload's namespace (`netdrill-demo`):
 
 ```bash
 # Syntax: <namespace>/<name>
@@ -95,6 +96,10 @@ netdrill pod test-cross-ns --same-as netdrill-demo/demo-web-pod
 # Syntax: <namespace>/<kind>/<name>
 netdrill pod test-cross-ns-explicit --same-as netdrill-demo/pod/demo-web-pod
 ```
+
+> [!NOTE]
+> If an explicit `-n <other>` namespace is provided, the cloned pod will be created in `<other>`, but referenced ConfigMaps, Secrets, and ServiceAccounts must exist in that namespace for the pod to start successfully.
+
 
 ---
 
@@ -190,7 +195,7 @@ Clone a Deployment into a single interactive troubleshooting Pod:
 netdrill pod demo-order-api-pod-clone -n netdrill-demo --same-as deployment/demo-order-api
 ```
 
-The pod inherits the deployment template's labels, service account, ports, env, and resources.
+The pod inherits the deployment template's service account, ports, env, and resources. Deployment template labels are safely omitted to prevent the troubleshooting pod from being matched by the deployment's Service selector.
 
 ---
 

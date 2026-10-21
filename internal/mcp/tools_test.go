@@ -539,8 +539,8 @@ func TestHandlePodCreate_SameAs(t *testing.T) {
 	pod, err := deps.Client.CoreV1().Pods("default").Get(ctx, "cloned-pod", metav1.GetOptions{})
 	require.NoError(t, err)
 
-	// Inherited
-	assert.Equal(t, "staging", pod.Labels["env"])
+	// Not inherited to prevent Service selector matching
+	assert.NotContains(t, pod.Labels, "env")
 	assert.Equal(t, map[string]string{"kubernetes.io/os": "linux"}, pod.Spec.NodeSelector)
 	assert.Equal(t, int32(8080), pod.Spec.Containers[0].Ports[0].ContainerPort)
 	assert.Equal(t, "SOURCE_ENV", pod.Spec.Containers[0].Env[0].Name)
@@ -596,4 +596,89 @@ func TestHandleDeploymentCreate_SameAs(t *testing.T) {
 	assert.Equal(t, "api-sa", deploy.Spec.Template.Spec.ServiceAccountName)
 	assert.Equal(t, int32(9000), deploy.Spec.Template.Spec.Containers[0].Ports[0].ContainerPort)
 	assert.Equal(t, deps.Cfg.Image, deploy.Spec.Template.Spec.Containers[0].Image)
+}
+
+func TestHandleRunCreate_SameAs(t *testing.T) {
+	t.Parallel()
+
+	ctx := t.Context()
+	fakeClient := fake.NewSimpleClientset(
+		&corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "source-run-pod",
+				Namespace: "default",
+				Labels:    map[string]string{"env": "staging"},
+			},
+			Spec: corev1.PodSpec{
+				ServiceAccountName: "source-sa",
+				Containers: []corev1.Container{
+					{
+						Name:  "web",
+						Ports: []corev1.ContainerPort{{ContainerPort: 8080}},
+					},
+				},
+			},
+		},
+	)
+
+	deps := testDeps(fakeClient)
+
+	_, out, err := handleRunCreate(ctx, deps, runCreateInput{
+		podCreateInput: podCreateInput{
+			PodName: "cloned-run-pod",
+			SameAs:  "source-run-pod",
+		},
+		Command: []string{"echo", "hello"},
+	})
+	require.NoError(t, err)
+	assert.Equal(t, "default", out.Namespace)
+	assert.Equal(t, "cloned-run-pod", out.PodName)
+
+	pod, err := deps.Client.CoreV1().Pods("default").Get(ctx, "cloned-run-pod", metav1.GetOptions{})
+	require.NoError(t, err)
+	assert.Equal(t, "source-sa", pod.Spec.ServiceAccountName)
+	assert.Equal(t, int32(8080), pod.Spec.Containers[0].Ports[0].ContainerPort)
+	assert.Equal(t, []string{"echo", "hello"}, pod.Spec.Containers[0].Command)
+}
+
+func TestHandleDeploymentCreate_SameAs_WithLabels(t *testing.T) {
+	t.Parallel()
+
+	ctx := t.Context()
+	fakeClient := fake.NewSimpleClientset(
+		&appsv1.Deployment{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "source-deploy",
+				Namespace: "default",
+			},
+			Spec: appsv1.DeploymentSpec{
+				Template: corev1.PodTemplateSpec{
+					ObjectMeta: metav1.ObjectMeta{
+						Labels: map[string]string{"tier": "api", "team": "backend"},
+					},
+					Spec: corev1.PodSpec{
+						Containers: []corev1.Container{
+							{Name: "server"},
+						},
+					},
+				},
+			},
+		},
+	)
+
+	deps := testDeps(fakeClient)
+
+	_, _, err := handleDeploymentCreate(ctx, deps, deploymentCreateInput{
+		Name:   "cloned-deploy-labels",
+		SameAs: "source-deploy",
+		Labels: map[string]string{"env": "custom", "tier": "override"},
+	})
+	require.NoError(t, err)
+
+	deploy, err := deps.Client.AppsV1().Deployments("default").Get(ctx, "cloned-deploy-labels", metav1.GetOptions{})
+	require.NoError(t, err)
+
+	assert.Equal(t, "custom", deploy.Labels["env"])
+	assert.Equal(t, "override", deploy.Labels["tier"])
+	assert.NotContains(t, deploy.Labels, "team")
 }

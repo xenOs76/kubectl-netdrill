@@ -341,6 +341,15 @@ func handleRunCreate(ctx context.Context, deps *Deps, in runCreateInput) (*mcp.C
 
 	cfg := podConfigFromCreateInput(deps, in.podCreateInput, ns, podName)
 
+	if in.SameAs != "" {
+		var err error
+
+		ns, err = applyMCPPodSameAs(ctx, deps, in.podCreateInput, ns, &cfg)
+		if err != nil {
+			return nil, podCreateOutput{}, err
+		}
+	}
+
 	if len(in.Command) > 0 {
 		cfg.Command = slices.Clone(in.Command)
 	}
@@ -599,33 +608,15 @@ func applyMCPDeploymentSameAs(
 		HasReplicas:       in.Replicas != nil,
 	}
 
+	if overrides.HasLabels && len(cfg.PodConfig.Labels) == 0 && len(cfg.Labels) > 0 {
+		cfg.PodConfig.Labels = maps.Clone(cfg.Labels)
+	}
+
 	if err := k8s.ApplySameAsWorkload(workload, in.SameAsContainer, overrides, &cfg.PodConfig); err != nil {
 		return ns, fmt.Errorf("applying sameAs: %w", err)
 	}
 
-	if !overrides.HasReplicas && workload.Replicas != nil {
-		cfg.Replicas = workload.Replicas
-	}
-
-	if !overrides.HasCPURequest {
-		cfg.CPURequest = cfg.PodConfig.CPURequest
-	}
-
-	if !overrides.HasMemoryRequest {
-		cfg.MemoryRequest = cfg.PodConfig.MemoryRequest
-	}
-
-	if !overrides.HasCPULimit {
-		cfg.CPULimit = cfg.PodConfig.CPULimit
-	}
-
-	if !overrides.HasMemoryLimit {
-		cfg.MemoryLimit = cfg.PodConfig.MemoryLimit
-	}
-
-	if !overrides.HasLabels && len(cfg.PodConfig.Labels) > 0 {
-		cfg.Labels = cfg.PodConfig.Labels
-	}
+	k8s.SyncDeploymentFromPodConfig(workload, overrides, cfg)
 
 	return ns, nil
 }
