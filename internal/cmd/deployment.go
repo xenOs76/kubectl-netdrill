@@ -115,6 +115,13 @@ Unlike 'run', this deployment is not automatically deleted.`,
 			return printDryRunObject(cmd.OutOrStdout(), deployment, format)
 		}
 
+		verifiedImg, err := verifyAndPinImage(ctx, opts.Image, cmd.ErrOrStderr())
+		if err != nil {
+			return err
+		}
+
+		opts.Image = verifiedImg
+
 		_, _ = fmt.Printf("Creating deployment %s in namespace %s...\n", opts.PodName, opts.Namespace)
 
 		_, err = k8s.CreateDeployment(ctx, client, opts)

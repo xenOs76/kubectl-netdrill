@@ -804,3 +804,24 @@ func completeOutput(_ *cobra.Command, _ []string, toComplete string) ([]string, 
 func completeImagePullPolicy(_ *cobra.Command, _ []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 	return filterPrefix([]string{"Always", "IfNotPresent", "Never"}, toComplete), cobra.ShellCompDirectiveNoFileComp
 }
+
+// completeCosignIdentity provides sample autocompletion suggestions for --cosign-identity.
+func completeCosignIdentity(_ *cobra.Command, _ []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	samples := []string{
+		`^https://github\.com/(?i:xenos76)/netdrill/`,
+		`^https://github\.com/<org>/<repo>/\.github/workflows/`,
+	}
+
+	return filterPrefix(samples, toComplete), cobra.ShellCompDirectiveNoFileComp
+}
+
+// completeCosignOIDCIssuer provides sample autocompletion suggestions for --cosign-oidc-issuer.
+func completeCosignOIDCIssuer(_ *cobra.Command, _ []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	samples := []string{
+		"https://token.actions.githubusercontent.com",
+		"https://accounts.google.com",
+		"https://gitlab.com",
+	}
+
+	return filterPrefix(samples, toComplete), cobra.ShellCompDirectiveNoFileComp
+}

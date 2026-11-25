@@ -78,6 +78,13 @@ var debugCmd = &cobra.Command{
 			return printDryRunObject(cmd.OutOrStdout(), pod, format)
 		}
 
+		verifiedImg, err := verifyAndPinImage(ctx, opts.Image, cmd.ErrOrStderr())
+		if err != nil {
+			return err
+		}
+
+		opts.Image = verifiedImg
+
 		_, _ = fmt.Printf("Adding ephemeral container %s to pod %s in namespace %s...\n",
 			containerName, podName, namespace)
 

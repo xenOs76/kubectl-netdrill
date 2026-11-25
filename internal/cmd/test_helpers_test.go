@@ -1,14 +1,22 @@
 package cmd
 
 import (
+	"context"
 	"os"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
+	"github.com/xenos76/kubectl-netdrill/internal/image"
 )
 
 func init() {
 	_ = os.Setenv("KUBECONFIG", os.DevNull)
+	verifyImageFn = func(_ context.Context, opts image.VerifyOptions) (*image.VerifyResult, error) {
+		return &image.VerifyResult{
+			Status:      image.VerifyStatusSkippedMissing,
+			ResolvedRef: opts.Image,
+		}, nil
+	}
 }
 
 // resetCmdState clears sticky cobra args/flags left by prior Execute calls

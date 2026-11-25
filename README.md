@@ -186,6 +186,10 @@ kubectl netdrill run my-troubleshooter
 | `--image-pull-policy` |   | Image pull policy (`Always`, `IfNotPresent`, or `Never`)       | `IfNotPresent`                    |
 | `--dry-run`       |       | Print rendered manifest without sending (`none` or `client`)   | `none`                            |
 | `--output`        | `-o`  | Dry-run output format (`yaml` or `json`; defaults to `yaml`)   |                                   |
+| `--verify`        |       | Verify container image Cosign signature (warns/skips if unsigned) | `true`                         |
+| `--cosign-key`    |       | Path to Cosign public key (or inline PEM) for static-key verification |                            |
+| `--cosign-identity` |     | Expected Cosign certificate identity (SAN) or regexp (keyless OIDC) |                              |
+| `--cosign-oidc-issuer` |  | Expected Cosign OIDC issuer URL or regexp (keyless OIDC)       |                                   |
 
 #### Examples
 
@@ -258,6 +262,10 @@ kubectl netdrill pod my-persistent-troubleshooter
 | `--image-pull-policy` |     | Image pull policy (`Always`, `IfNotPresent`, or `Never`) | `IfNotPresent`                |
 | `--dry-run`         |       | Print rendered manifest without sending (`none` or `client`) | `none`                    |
 | `--output`          | `-o`  | Dry-run output format (`yaml` or `json`; defaults to `yaml`) |                           |
+| `--verify`          |       | Verify container image Cosign signature (warns/skips if unsigned) | `true`               |
+| `--cosign-key`      |       | Path to Cosign public key (or inline PEM) for static-key verification |                  |
+| `--cosign-identity` |       | Expected Cosign certificate identity (SAN) or regexp (keyless OIDC) |                    |
+| `--cosign-oidc-issuer` |    | Expected Cosign OIDC issuer URL or regexp (keyless OIDC)     |                           |
 
 #### Examples
 
@@ -355,6 +363,10 @@ kubectl netdrill deployment my-deployment
 | `--image-pull-policy` |     | Image pull policy (`Always`, `IfNotPresent`, or `Never`) | `IfNotPresent`                |
 | `--dry-run`         |       | Print rendered manifest without sending (`none` or `client`) | `none`                    |
 | `--output`          | `-o`  | Dry-run output format (`yaml` or `json`; defaults to `yaml`) |                           |
+| `--verify`          |       | Verify container image Cosign signature (warns/skips if unsigned) | `true`               |
+| `--cosign-key`      |       | Path to Cosign public key (or inline PEM) for static-key verification |                  |
+| `--cosign-identity` |       | Expected Cosign certificate identity (SAN) or regexp (keyless OIDC) |                    |
+| `--cosign-oidc-issuer` |    | Expected Cosign OIDC issuer URL or regexp (keyless OIDC)     |                           |
 
 #### Examples
 
@@ -416,6 +428,10 @@ kubectl netdrill debug <pod-name> --target <container-name>
 | `--image-pull-policy` | | Image pull policy (`Always`, `IfNotPresent`, or `Never`) | `IfNotPresent`    |
 | `--dry-run` |      | Print rendered Pod with ephemeral container without updating (`none` or `client`) | `none` |
 | `--output` | `-o`  | Dry-run output format (`yaml` or `json`; defaults to `yaml`) |               |
+| `--verify` |       | Verify container image Cosign signature (warns/skips if unsigned) | `true`    |
+| `--cosign-key` |   | Path to Cosign public key (or inline PEM) for static-key verification |       |
+| `--cosign-identity` | | Expected Cosign certificate identity (SAN) or regexp (keyless OIDC) |         |
+| `--cosign-oidc-issuer` | | Expected Cosign OIDC issuer URL or regexp (keyless OIDC) |                |
 
 #### Examples
 

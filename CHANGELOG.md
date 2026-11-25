@@ -2,6 +2,7 @@
 
 ### Feat
 
+    add Cosign image signature verification (--verify default true, --cosign-key, --cosign-identity, --cosign-oidc-issuer) with GitHub Actions OIDC defaults and shell completions
     add --image-pull-policy persistent flag (Always, IfNotPresent, Never; default IfNotPresent) with autocompletion
     add --dry-run (none|client) and -o/--output (yaml|json) persistent flags to preview rendered Kubernetes manifests
     add dynamic shell completion for --node-selector flag across pod, deployment, and run commands
