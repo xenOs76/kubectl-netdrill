@@ -64,12 +64,8 @@ func deploymentLabels(opts DeploymentOptions) (labels, selectorLabels map[string
 	return labels, selectorLabels
 }
 
-// CreateDeployment creates a new Deployment with the specified options.
-func CreateDeployment(
-	ctx context.Context,
-	client kubernetes.Interface,
-	opts DeploymentOptions,
-) (*appsv1.Deployment, error) {
+// BuildDeployment constructs a troubleshooting Deployment manifest from opts without creating it in the cluster.
+func BuildDeployment(opts DeploymentOptions) (*appsv1.Deployment, error) {
 	replicas := int32(1)
 	if opts.Replicas != nil {
 		replicas = *opts.Replicas
@@ -134,6 +130,20 @@ func CreateDeployment(
 	}
 
 	ensureEKSToken(&deployment.Spec.Template.Spec)
+
+	return deployment, nil
+}
+
+// CreateDeployment creates a new Deployment with the specified options.
+func CreateDeployment(
+	ctx context.Context,
+	client kubernetes.Interface,
+	opts DeploymentOptions,
+) (*appsv1.Deployment, error) {
+	deployment, err := BuildDeployment(opts)
+	if err != nil {
+		return nil, err
+	}
 
 	return client.AppsV1().Deployments(opts.Namespace).Create(ctx, deployment, metav1.CreateOptions{})
 }

@@ -129,8 +129,8 @@ func podLabels(opts PodOptions) map[string]string {
 	return labels
 }
 
-// CreatePod creates a new Pod with the specified options.
-func CreatePod(ctx context.Context, client kubernetes.Interface, opts PodOptions) (*corev1.Pod, error) {
+// BuildPod constructs a troubleshooting Pod manifest from opts without creating it in the cluster.
+func BuildPod(opts PodOptions) (*corev1.Pod, error) {
 	resources, err := BuildResourceRequirements(opts.CPURequest, opts.MemoryRequest, opts.CPULimit, opts.MemoryLimit)
 	if err != nil {
 		return nil, err
@@ -177,6 +177,16 @@ func CreatePod(ctx context.Context, client kubernetes.Interface, opts PodOptions
 	}
 
 	ensureEKSToken(&pod.Spec)
+
+	return pod, nil
+}
+
+// CreatePod creates a new Pod with the specified options.
+func CreatePod(ctx context.Context, client kubernetes.Interface, opts PodOptions) (*corev1.Pod, error) {
+	pod, err := BuildPod(opts)
+	if err != nil {
+		return nil, err
+	}
 
 	return client.CoreV1().Pods(opts.Namespace).Create(ctx, pod, metav1.CreateOptions{})
 }

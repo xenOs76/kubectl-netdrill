@@ -7,6 +7,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/xenos76/kubectl-netdrill/internal/k8s"
 	"github.com/xenos76/kubectl-netdrill/internal/netdrill"
+	"k8s.io/client-go/kubernetes"
 )
 
 var podCmd = &cobra.Command{
@@ -15,6 +16,11 @@ var podCmd = &cobra.Command{
 	Long:  `Create a persistent pod with the netdrill image. Unlike 'run', this pod is not automatically deleted.`,
 	Args:  cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		isDryRun, format, err := validateDryRunOutput(DryRun, Output)
+		if err != nil {
+			return err
+		}
+
 		podName := "netdrill"
 		if len(args) > 0 {
 			podName = args[0]
@@ -22,9 +28,12 @@ var podCmd = &cobra.Command{
 
 		ctx := context.Background()
 
-		client, _, err := k8s.ClientProvider(ConfigFlags)
-		if err != nil {
-			return fmt.Errorf("getting client: %w", err)
+		var client kubernetes.Interface
+		if !isDryRun || SameAs != "" {
+			client, _, err = k8s.ClientProvider(ConfigFlags)
+			if err != nil {
+				return fmt.Errorf("getting client: %w", err)
+			}
 		}
 
 		namespace, _, err := ConfigFlags.ToRawKubeConfigLoader().Namespace()
@@ -54,10 +63,25 @@ var podCmd = &cobra.Command{
 				return fmt.Errorf("applying --same-as: %w", err)
 			}
 
-			fmt.Printf("Cloning operational settings from %s %s/%s...\n", target.Kind, target.Namespace, target.Name)
+			if isDryRun {
+				_, _ = fmt.Fprintf(cmd.ErrOrStderr(), "Cloning operational settings from %s %s/%s...\n",
+					target.Kind, target.Namespace, target.Name)
+			} else {
+				fmt.Printf("Cloning operational settings from %s %s/%s...\n",
+					target.Kind, target.Namespace, target.Name)
+			}
 		}
 
 		opts := k8s.PodOptionsFromConfig(cfg)
+
+		if isDryRun {
+			pod, err := k8s.BuildPod(opts)
+			if err != nil {
+				return fmt.Errorf("building pod: %w", err)
+			}
+
+			return printDryRunObject(cmd.OutOrStdout(), pod, format)
+		}
 
 		fmt.Printf("Creating pod %s in namespace %s...\n", cfg.PodName, cfg.Namespace)
 

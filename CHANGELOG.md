@@ -2,6 +2,7 @@
 
 ### Feat
 
+    add --dry-run (none|client) and -o/--output (yaml|json) persistent flags to preview rendered Kubernetes manifests
     add dynamic shell completion for --node-selector flag across pod, deployment, and run commands
     add dynamic shell completion for --service-account flag across pod and deployment commands
     add dynamic shell completion for --namespace (-n) persistent flag across all commands
@@ -21,6 +22,7 @@
 
 ### CI
 
+    bump Go version to 1.27.4 in codeChecks workflow
     bump Go version to 1.27.2 in codeChecks workflow
     update golang.org/x/net to v0.60.0
 

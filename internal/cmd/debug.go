@@ -20,7 +20,12 @@ var debugCmd = &cobra.Command{
 	Short: "Debug an existing pod with an ephemeral container",
 	Long:  `Add a temporary container with the netdrill image to an existing pod.`,
 	Args:  cobra.MaximumNArgs(1),
-	RunE: func(_ *cobra.Command, args []string) error {
+	RunE: func(cmd *cobra.Command, args []string) error {
+		isDryRun, format, err := validateDryRunOutput(DryRun, Output)
+		if err != nil {
+			return err
+		}
+
 		podName := "netdrill"
 		if len(args) > 0 {
 			podName = args[0]
@@ -56,6 +61,15 @@ var debugCmd = &cobra.Command{
 			ContainerName: containerName,
 			Image:         Image,
 			TargetProcess: TargetContainer,
+		}
+
+		if isDryRun {
+			pod, err := k8s.BuildDebugPod(ctx, client, opts)
+			if err != nil {
+				return fmt.Errorf("building debug pod: %w", err)
+			}
+
+			return printDryRunObject(cmd.OutOrStdout(), pod, format)
 		}
 
 		fmt.Printf("Adding ephemeral container %s to pod %s in namespace %s...\n", containerName, podName, namespace)

@@ -183,6 +183,8 @@ kubectl netdrill run my-troubleshooter
 | `--command`       |       | Command to run in the container                                | shell (interactive)               |
 | `--node-selector` |       | Node labels for pod scheduling (can be used multiple times)    |                                   |
 | `--image`         | `-i`  | Container image to use                                         | `ghcr.io/xenos76/netdrill:latest` |
+| `--dry-run`       |       | Print rendered manifest without sending (`none` or `client`)   | `none`                            |
+| `--output`        | `-o`  | Dry-run output format (`yaml` or `json`; defaults to `yaml`)   |                                   |
 
 #### Examples
 
@@ -214,6 +216,12 @@ Run a custom command instead of an interactive shell:
 
 ```bash
 kubectl netdrill run --command "ip addr show"
+```
+
+Preview the rendered Pod manifest in YAML without creating it:
+
+```bash
+kubectl netdrill run --host-network --dry-run=client -o yaml
 ```
 
 </details>

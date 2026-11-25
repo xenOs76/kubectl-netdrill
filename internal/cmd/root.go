@@ -31,6 +31,10 @@ var (
 	SameAs string
 	// SameAsContainer specifies which container in the target workload to clone from.
 	SameAsContainer string
+	// DryRun controls client-side dry-run rendering ("none" or "client").
+	DryRun string
+	// Output controls the manifest format when --dry-run=client is set ("yaml" or "json").
+	Output string
 )
 
 var rootCmd = &cobra.Command{
@@ -59,7 +63,22 @@ func init() {
 		DefaultImage,
 		"The netdrill image to use",
 	)
+	rootCmd.PersistentFlags().StringVar(&DryRun,
+		"dry-run",
+		dryRunNone,
+		"Must be \"none\" or \"client\". If client strategy, only print the object "+
+			"that would be sent, without sending it",
+	)
+	rootCmd.PersistentFlags().Lookup("dry-run").NoOptDefVal = dryRunClient
+	rootCmd.PersistentFlags().StringVarP(&Output,
+		"output",
+		"o",
+		"",
+		"Output format for dry-run manifest (yaml or json)",
+	)
 
 	rootCmd.AddCommand(completionCmd)
 	_ = rootCmd.RegisterFlagCompletionFunc("namespace", completeNamespace)
+	_ = rootCmd.RegisterFlagCompletionFunc("dry-run", completeDryRun)
+	_ = rootCmd.RegisterFlagCompletionFunc("output", completeOutput)
 }

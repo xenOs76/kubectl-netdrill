@@ -20,10 +20,38 @@ var runCmd = &cobra.Command{
 	Short: "Run an ephemeral pod for troubleshooting",
 	Long:  `Create an ephemeral pod with the netdrill image and attach to it.`,
 	Args:  cobra.MaximumNArgs(1),
-	RunE: func(_ *cobra.Command, args []string) error {
+	RunE: func(cmd *cobra.Command, args []string) error {
+		isDryRun, format, err := validateDryRunOutput(DryRun, Output)
+		if err != nil {
+			return err
+		}
+
 		podName := "netdrill"
 		if len(args) > 0 {
 			podName = args[0]
+		}
+
+		namespace, _, err := ConfigFlags.ToRawKubeConfigLoader().Namespace()
+		if err != nil {
+			return fmt.Errorf("getting namespace: %w", err)
+		}
+
+		opts := k8s.PodOptions{
+			Namespace:    namespace,
+			PodName:      podName,
+			Image:        Image,
+			HostNetwork:  HostNetwork,
+			NodeSelector: NodeSelector,
+			Command:      Command,
+		}
+
+		if isDryRun {
+			pod, err := k8s.BuildPod(opts)
+			if err != nil {
+				return fmt.Errorf("building pod: %w", err)
+			}
+
+			return printDryRunObject(cmd.OutOrStdout(), pod, format)
 		}
 
 		ctx, cancel := context.WithCancel(context.Background())
@@ -41,20 +69,6 @@ var runCmd = &cobra.Command{
 		client, config, err := k8s.ClientProvider(ConfigFlags)
 		if err != nil {
 			return fmt.Errorf("getting client: %w", err)
-		}
-
-		namespace, _, err := ConfigFlags.ToRawKubeConfigLoader().Namespace()
-		if err != nil {
-			return fmt.Errorf("getting namespace: %w", err)
-		}
-
-		opts := k8s.PodOptions{
-			Namespace:    namespace,
-			PodName:      podName,
-			Image:        Image,
-			HostNetwork:  HostNetwork,
-			NodeSelector: NodeSelector,
-			Command:      Command,
 		}
 
 		fmt.Printf("Creating pod %s in namespace %s...\n", podName, namespace)

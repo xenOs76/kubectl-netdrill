@@ -789,3 +789,13 @@ func completeSameAsContainer(cmd *cobra.Command, _ []string, toComplete string) 
 
 	return suggestions, cobra.ShellCompDirectiveNoFileComp
 }
+
+// completeDryRun provides static autocompletion suggestions for --dry-run.
+func completeDryRun(_ *cobra.Command, _ []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	return filterPrefix([]string{dryRunNone, dryRunClient}, toComplete), cobra.ShellCompDirectiveNoFileComp
+}
+
+// completeOutput provides static autocompletion suggestions for -o/--output.
+func completeOutput(_ *cobra.Command, _ []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	return filterPrefix([]string{outputYAML, outputJSON}, toComplete), cobra.ShellCompDirectiveNoFileComp
+}
