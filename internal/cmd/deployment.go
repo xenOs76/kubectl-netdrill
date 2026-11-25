@@ -137,12 +137,6 @@ Unlike 'run', this deployment is not automatically deleted.`,
 
 		_, _ = fmt.Printf("Deployment %s created successfully.\n", opts.PodName)
 		_, _ = fmt.Printf("Use 'kubectl get pods -l app=%s' to find the pods.\n", appLabel)
-
-		if Secure {
-			_, _ = fmt.Printf("Use 'kubectl exec -it <pod> -n %s -- %s' to attach to it.\n",
-				opts.Namespace, podAttachShellCommand())
-		}
-
 		_, _ = fmt.Printf("Use 'kubectl delete deployment %s -n %s' to delete it.\n", opts.PodName, opts.Namespace)
 
 		return nil

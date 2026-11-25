@@ -318,6 +318,12 @@ kubectl-netdrill pod netdrill-iam-pod \
     --service-account aws-client
 ```
 
+Create a hardened pod compliant with Kubernetes Restricted Pod Security Standards (runs as UID `65532` with `readOnlyRootFilesystem: true`, writable `emptyDir` mounts at `/tmp` and `/root`, and `HOME=/root`):
+
+```bash
+kubectl netdrill pod sec-pod --secure
+```
+
 Attach to an existing persistent pod:
 
 ```bash

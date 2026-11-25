@@ -21,10 +21,10 @@ const (
 	// SecureDefaultMemoryLimit is the default memory limit applied by --secure when unset.
 	SecureDefaultMemoryLimit = "256Mi"
 
-	secureTmpVolumeName     = "tmp"
-	secureTmpMountPath      = "/tmp"
-	secureWorkdirVolumeName = "workdir"
-	secureWorkdirMountPath  = "/workdir"
+	secureTmpVolumeName  = "tmp"
+	secureTmpMountPath   = "/tmp"
+	secureRootVolumeName = "root"
+	secureRootMountPath  = "/root"
 )
 
 // ApplySecurePodConfig applies Kubernetes Restricted Pod Security Standards and
@@ -46,7 +46,7 @@ func ApplySecurePodConfig(cfg *netdrill.PodConfig) error {
 	}
 
 	ensureSecureEmptyDirMount(cfg, secureTmpVolumeName, secureTmpMountPath)
-	ensureSecureEmptyDirMount(cfg, secureWorkdirVolumeName, secureWorkdirMountPath)
+	ensureSecureEmptyDirMount(cfg, secureRootVolumeName, secureRootMountPath)
 	ensureSecureEnv(cfg)
 	applySecureResourceDefaults(cfg)
 
@@ -169,6 +169,9 @@ func ensureSecureEnv(cfg *netdrill.PodConfig) {
 	}
 
 	cfg.EnvVars["SECURE"] = "true"
+	if _, ok := cfg.EnvVars["HOME"]; !ok {
+		cfg.EnvVars["HOME"] = secureRootMountPath
+	}
 }
 
 func applySecureResourceDefaults(cfg *netdrill.PodConfig) {

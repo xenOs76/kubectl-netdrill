@@ -43,10 +43,9 @@ func TestApplySecurePodConfig_Defaults(t *testing.T) {
 	assert.Equal(t, []corev1.Capability{"ALL"}, c.SecurityContext.Capabilities.Drop)
 
 	assert.Contains(t, c.Env, corev1.EnvVar{Name: "SECURE", Value: "true"})
-	assert.NotContains(t, c.Env, corev1.EnvVar{Name: "HOME", Value: "/root"})
-	assert.NotContains(t, c.Env, corev1.EnvVar{Name: "HOME", Value: "/tmp"})
+	assert.Contains(t, c.Env, corev1.EnvVar{Name: "HOME", Value: "/root"})
 	assert.Contains(t, c.VolumeMounts, corev1.VolumeMount{Name: "tmp", MountPath: "/tmp"})
-	assert.Contains(t, c.VolumeMounts, corev1.VolumeMount{Name: "workdir", MountPath: "/workdir"})
+	assert.Contains(t, c.VolumeMounts, corev1.VolumeMount{Name: "root", MountPath: "/root"})
 	assert.Len(t, pod.Spec.Volumes, 2)
 	assert.NotNil(t, pod.Spec.Volumes[0].EmptyDir)
 	assert.NotNil(t, pod.Spec.Volumes[1].EmptyDir)
@@ -84,8 +83,7 @@ func TestApplySecurePodConfig_EdgeCases(t *testing.T) {
 		assert.Equal(t, "1", cfg.CPULimit)
 		assert.Equal(t, "1Gi", cfg.MemoryLimit)
 		assert.Equal(t, "true", cfg.EnvVars["SECURE"])
-		_, hasHome := cfg.EnvVars["HOME"]
-		assert.False(t, hasHome)
+		assert.Equal(t, "/root", cfg.EnvVars["HOME"])
 	})
 }
 
