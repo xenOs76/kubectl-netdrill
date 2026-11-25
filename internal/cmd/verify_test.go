@@ -177,6 +177,7 @@ func TestPodCommand_DryRunVerifiesAndPinsDigest(t *testing.T) {
 	rootCmd.SetArgs([]string{"pod", "test-pod", "--dry-run=client", "-o", "yaml"})
 
 	require.NoError(t, rootCmd.Execute())
+	assert.Contains(t, outBuf.String(), "---\napiVersion: v1")
 	assert.Contains(t, outBuf.String(), "ghcr.io/xenos76/netdrill@sha256:deadbeef")
 	assert.Contains(t, errBuf.String(), "Verified cosign signature")
 }

@@ -55,6 +55,10 @@ func printDryRunObject(out io.Writer, obj runtime.Object, format string) error {
 
 	switch format {
 	case outputYAML:
+		if _, err := fmt.Fprintln(out, "---"); err != nil {
+			return err
+		}
+
 		basePrinter = &printers.YAMLPrinter{}
 	case outputJSON:
 		basePrinter = &printers.JSONPrinter{}

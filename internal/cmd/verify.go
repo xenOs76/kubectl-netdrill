@@ -36,14 +36,14 @@ func verifyAndPinImage(ctx context.Context, img string, errOut io.Writer) (strin
 
 	if res.Status == image.VerifyStatusSkippedMissing {
 		if errOut != nil {
-			_, _ = fmt.Fprintf(errOut, "Warning: %s has no cosign signatures; skipping verification\n", img)
+			_, _ = fmt.Fprintf(errOut, "Warning: %s has no cosign signatures; skipping verification\n\n", img)
 		}
 
 		return img, nil
 	}
 
 	if errOut != nil {
-		_, _ = fmt.Fprintf(errOut, "Verified cosign signature for %s (%s)\n", img, res.Digest)
+		_, _ = fmt.Fprintf(errOut, "Verified cosign signature for %s (%s)\n\n", img, res.Digest)
 	}
 
 	return res.ResolvedRef, nil
