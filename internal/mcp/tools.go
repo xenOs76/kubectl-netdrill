@@ -266,21 +266,22 @@ func defaultPodName(name string) string {
 // podConfigFromCreateInput converts MCP pod creation input into a netdrill.PodConfig.
 func podConfigFromCreateInput(deps *Deps, in podCreateInput, ns, podName string) netdrill.PodConfig {
 	return netdrill.PodConfig{
-		Namespace:      ns,
-		PodName:        podName,
-		Image:          deps.Cfg.Image,
-		Owner:          deps.Cfg.Owner,
-		Ticket:         in.TicketID,
-		NodeSelector:   maps.Clone(in.NodeSelector),
-		ServiceAccount: in.ServiceAccount,
-		EnvVars:        maps.Clone(in.Env),
-		Ports:          slices.Clone(in.Ports),
-		HostNetwork:    in.HostNetwork,
-		Labels:         maps.Clone(in.Labels),
-		CPURequest:     in.CPURequest,
-		MemoryRequest:  in.MemoryRequest,
-		CPULimit:       in.CPULimit,
-		MemoryLimit:    in.MemoryLimit,
+		Namespace:       ns,
+		PodName:         podName,
+		Image:           deps.Cfg.Image,
+		ImagePullPolicy: deps.Cfg.ImagePullPolicy,
+		Owner:           deps.Cfg.Owner,
+		Ticket:          in.TicketID,
+		NodeSelector:    maps.Clone(in.NodeSelector),
+		ServiceAccount:  in.ServiceAccount,
+		EnvVars:         maps.Clone(in.Env),
+		Ports:           slices.Clone(in.Ports),
+		HostNetwork:     in.HostNetwork,
+		Labels:          maps.Clone(in.Labels),
+		CPURequest:      in.CPURequest,
+		MemoryRequest:   in.MemoryRequest,
+		CPULimit:        in.CPULimit,
+		MemoryLimit:     in.MemoryLimit,
 	}
 }
 
@@ -483,16 +484,17 @@ func handleDeploymentCreate(
 
 	cfg := netdrill.DeploymentConfig{
 		PodConfig: netdrill.PodConfig{
-			Namespace:      ns,
-			PodName:        name,
-			Image:          deps.Cfg.Image,
-			Owner:          deps.Cfg.Owner,
-			Ticket:         in.TicketID,
-			NodeSelector:   maps.Clone(in.NodeSelector),
-			ServiceAccount: in.ServiceAccount,
-			EnvVars:        maps.Clone(in.Env),
-			Ports:          slices.Clone(in.Ports),
-			HostNetwork:    in.HostNetwork,
+			Namespace:       ns,
+			PodName:         name,
+			Image:           deps.Cfg.Image,
+			ImagePullPolicy: deps.Cfg.ImagePullPolicy,
+			Owner:           deps.Cfg.Owner,
+			Ticket:          in.TicketID,
+			NodeSelector:    maps.Clone(in.NodeSelector),
+			ServiceAccount:  in.ServiceAccount,
+			EnvVars:         maps.Clone(in.Env),
+			Ports:           slices.Clone(in.Ports),
+			HostNetwork:     in.HostNetwork,
 		},
 		AppLabel:      name,
 		Replicas:      &replicas,
@@ -660,11 +662,12 @@ func handleDebugAdd(ctx context.Context, deps *Deps, in debugAddInput) (*mcp.Cal
 	}
 
 	opts := k8s.EphemeralOptions{
-		Namespace:     ns,
-		PodName:       podName,
-		ContainerName: netdrill.ContainerDebug,
-		Image:         deps.Cfg.Image,
-		TargetProcess: in.TargetContainer,
+		Namespace:       ns,
+		PodName:         podName,
+		ContainerName:   netdrill.ContainerDebug,
+		Image:           deps.Cfg.Image,
+		ImagePullPolicy: deps.Cfg.ImagePullPolicy,
+		TargetProcess:   in.TargetContainer,
 	}
 
 	if err := k8s.AddEphemeralContainer(ctx, deps.Client, opts); err != nil {

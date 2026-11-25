@@ -100,7 +100,7 @@ func BuildDeployment(opts DeploymentOptions) (*appsv1.Deployment, error) {
 						{
 							Name:            netdrill.ContainerNetdrill,
 							Image:           opts.Image,
-							ImagePullPolicy: corev1.PullIfNotPresent,
+							ImagePullPolicy: resolvePullPolicy(opts.ImagePullPolicy),
 							Stdin:           true,
 							TTY:             true,
 							Command:         opts.Command,

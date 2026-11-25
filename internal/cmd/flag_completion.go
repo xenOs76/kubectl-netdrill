@@ -799,3 +799,8 @@ func completeDryRun(_ *cobra.Command, _ []string, toComplete string) ([]string, 
 func completeOutput(_ *cobra.Command, _ []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 	return filterPrefix([]string{outputYAML, outputJSON}, toComplete), cobra.ShellCompDirectiveNoFileComp
 }
+
+// completeImagePullPolicy provides static autocompletion suggestions for --image-pull-policy.
+func completeImagePullPolicy(_ *cobra.Command, _ []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	return filterPrefix([]string{"Always", "IfNotPresent", "Never"}, toComplete), cobra.ShellCompDirectiveNoFileComp
+}

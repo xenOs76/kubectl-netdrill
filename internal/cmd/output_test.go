@@ -244,4 +244,57 @@ func TestDryRunOutputCompletions(t *testing.T) {
 	outputSuggestions, directive := completeOutput(nil, nil, "")
 	assert.Equal(t, []string{"yaml", "json"}, outputSuggestions)
 	assert.Equal(t, cobra.ShellCompDirectiveNoFileComp, directive)
+
+	pullPolicySuggestions, directive := completeImagePullPolicy(nil, nil, "")
+	assert.Equal(t, []string{"Always", "IfNotPresent", "Never"}, pullPolicySuggestions)
+	assert.Equal(t, cobra.ShellCompDirectiveNoFileComp, directive)
+
+	filteredPullPolicy, directive := completeImagePullPolicy(nil, nil, "I")
+	assert.Equal(t, []string{"IfNotPresent"}, filteredPullPolicy)
+	assert.Equal(t, cobra.ShellCompDirectiveNoFileComp, directive)
+}
+
+func TestImagePullPolicy(t *testing.T) {
+	withNoClusterClientProvider(t)
+
+	for _, tc := range []struct {
+		name    string
+		val     string
+		want    corev1.PullPolicy
+		wantErr bool
+	}{
+		{name: "empty defaults to IfNotPresent", val: "", want: corev1.PullIfNotPresent},
+		{name: "Always", val: "Always", want: corev1.PullAlways},
+		{name: "IfNotPresent", val: "IfNotPresent", want: corev1.PullIfNotPresent},
+		{name: "Never", val: "Never", want: corev1.PullNever},
+		{name: "invalid", val: "Sometimes", wantErr: true},
+	} {
+		t.Run("validate "+tc.name, func(t *testing.T) {
+			got, err := validateImagePullPolicy(tc.val)
+			if tc.wantErr {
+				require.Error(t, err)
+				return
+			}
+
+			require.NoError(t, err)
+			assert.Equal(t, tc.want, got)
+		})
+	}
+
+	t.Run("pod --image-pull-policy Always", func(t *testing.T) {
+		resetCmdState()
+
+		stdout := new(bytes.Buffer)
+
+		rootCmd.SetOut(stdout)
+		rootCmd.SetErr(new(bytes.Buffer))
+		rootCmd.SetArgs([]string{"pod", "pull-pod", "--image-pull-policy", "Always", "--dry-run=client"})
+
+		require.NoError(t, rootCmd.ExecuteContext(context.Background()))
+
+		var pod corev1.Pod
+		require.NoError(t, yaml.Unmarshal(stdout.Bytes(), &pod))
+		require.Len(t, pod.Spec.Containers, 1)
+		assert.Equal(t, corev1.PullAlways, pod.Spec.Containers[0].ImagePullPolicy)
+	})
 }

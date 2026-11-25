@@ -21,6 +21,11 @@ var podCmd = &cobra.Command{
 			return err
 		}
 
+		pullPolicy, err := validateImagePullPolicy(ImagePullPolicy)
+		if err != nil {
+			return err
+		}
+
 		podName := "netdrill"
 		if len(args) > 0 {
 			podName = args[0]
@@ -42,19 +47,20 @@ var podCmd = &cobra.Command{
 		}
 
 		cfg := netdrill.PodConfig{
-			Namespace:      namespace,
-			PodName:        podName,
-			Image:          Image,
-			HostNetwork:    HostNetwork,
-			NodeSelector:   NodeSelector,
-			ServiceAccount: ServiceAccount,
-			Ports:          Ports,
-			EnvVars:        EnvVars,
-			Labels:         Labels,
-			CPURequest:     CPURequest,
-			MemoryRequest:  MemoryRequest,
-			CPULimit:       CPULimit,
-			MemoryLimit:    MemoryLimit,
+			Namespace:       namespace,
+			PodName:         podName,
+			Image:           Image,
+			ImagePullPolicy: pullPolicy,
+			HostNetwork:     HostNetwork,
+			NodeSelector:    NodeSelector,
+			ServiceAccount:  ServiceAccount,
+			Ports:           Ports,
+			EnvVars:         EnvVars,
+			Labels:          Labels,
+			CPURequest:      CPURequest,
+			MemoryRequest:   MemoryRequest,
+			CPULimit:        CPULimit,
+			MemoryLimit:     MemoryLimit,
 		}
 
 		if SameAs != "" {
@@ -67,7 +73,7 @@ var podCmd = &cobra.Command{
 				_, _ = fmt.Fprintf(cmd.ErrOrStderr(), "Cloning operational settings from %s %s/%s...\n",
 					target.Kind, target.Namespace, target.Name)
 			} else {
-				fmt.Printf("Cloning operational settings from %s %s/%s...\n",
+				_, _ = fmt.Printf("Cloning operational settings from %s %s/%s...\n",
 					target.Kind, target.Namespace, target.Name)
 			}
 		}
@@ -83,16 +89,17 @@ var podCmd = &cobra.Command{
 			return printDryRunObject(cmd.OutOrStdout(), pod, format)
 		}
 
-		fmt.Printf("Creating pod %s in namespace %s...\n", cfg.PodName, cfg.Namespace)
+		_, _ = fmt.Printf("Creating pod %s in namespace %s...\n", cfg.PodName, cfg.Namespace)
 
 		_, err = k8s.CreatePod(ctx, client, opts)
 		if err != nil {
 			return fmt.Errorf("creating pod: %w", err)
 		}
 
-		fmt.Printf("Pod %s created successfully.\n", cfg.PodName)
-		fmt.Printf("Use 'kubectl exec -it %s -n %s -- /bin/bash' to attach to it.\n", cfg.PodName, cfg.Namespace)
-		fmt.Printf("Use 'kubectl delete pod %s -n %s' to delete it.\n", cfg.PodName, cfg.Namespace)
+		_, _ = fmt.Printf("Pod %s created successfully.\n", cfg.PodName)
+		_, _ = fmt.Printf("Use 'kubectl exec -it %s -n %s -- /bin/bash' to attach to it.\n",
+			cfg.PodName, cfg.Namespace)
+		_, _ = fmt.Printf("Use 'kubectl delete pod %s -n %s' to delete it.\n", cfg.PodName, cfg.Namespace)
 
 		return nil
 	},

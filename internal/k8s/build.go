@@ -54,6 +54,15 @@ func buildEnvVars(rawEnv []corev1.EnvVar, extraEnv map[string]string) []corev1.E
 	return envVars
 }
 
+// resolvePullPolicy returns policy or defaults to PullIfNotPresent when empty.
+func resolvePullPolicy(policy corev1.PullPolicy) corev1.PullPolicy {
+	if policy == "" {
+		return corev1.PullIfNotPresent
+	}
+
+	return policy
+}
+
 // PodOptionsFromConfig converts netdrill.PodConfig into PodOptions.
 func PodOptionsFromConfig(cfg netdrill.PodConfig) PodOptions {
 	var containerPorts []corev1.ContainerPort
@@ -77,6 +86,7 @@ func PodOptionsFromConfig(cfg netdrill.PodConfig) PodOptions {
 		Namespace:                 cfg.Namespace,
 		PodName:                   cfg.PodName,
 		Image:                     cfg.Image,
+		ImagePullPolicy:           cfg.ImagePullPolicy,
 		HostNetwork:               cfg.HostNetwork,
 		NodeSelector:              cfg.NodeSelector,
 		ServiceAccount:            cfg.ServiceAccount,

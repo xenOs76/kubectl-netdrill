@@ -2,6 +2,7 @@
 
 ### Feat
 
+    add --image-pull-policy persistent flag (Always, IfNotPresent, Never; default IfNotPresent) with autocompletion
     add --dry-run (none|client) and -o/--output (yaml|json) persistent flags to preview rendered Kubernetes manifests
     add dynamic shell completion for --node-selector flag across pod, deployment, and run commands
     add dynamic shell completion for --service-account flag across pod and deployment commands

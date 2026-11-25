@@ -26,6 +26,11 @@ var debugCmd = &cobra.Command{
 			return err
 		}
 
+		pullPolicy, err := validateImagePullPolicy(ImagePullPolicy)
+		if err != nil {
+			return err
+		}
+
 		podName := "netdrill"
 		if len(args) > 0 {
 			podName = args[0]
@@ -56,11 +61,12 @@ var debugCmd = &cobra.Command{
 		}
 
 		opts := k8s.EphemeralOptions{
-			Namespace:     namespace,
-			PodName:       podName,
-			ContainerName: containerName,
-			Image:         Image,
-			TargetProcess: TargetContainer,
+			Namespace:       namespace,
+			PodName:         podName,
+			ContainerName:   containerName,
+			Image:           Image,
+			ImagePullPolicy: pullPolicy,
+			TargetProcess:   TargetContainer,
 		}
 
 		if isDryRun {
@@ -72,20 +78,21 @@ var debugCmd = &cobra.Command{
 			return printDryRunObject(cmd.OutOrStdout(), pod, format)
 		}
 
-		fmt.Printf("Adding ephemeral container %s to pod %s in namespace %s...\n", containerName, podName, namespace)
+		_, _ = fmt.Printf("Adding ephemeral container %s to pod %s in namespace %s...\n",
+			containerName, podName, namespace)
 
 		err = k8s.AddEphemeralContainer(ctx, client, opts)
 		if err != nil {
 			return fmt.Errorf("adding ephemeral container: %w", err)
 		}
 
-		fmt.Printf("Waiting for ephemeral container %s to be ready...\n", containerName)
+		_, _ = fmt.Printf("Waiting for ephemeral container %s to be ready...\n", containerName)
 
 		if err := k8s.WaitForEphemeralContainerReady(ctx, client, namespace, podName, containerName); err != nil {
 			return fmt.Errorf("waiting for ephemeral container: %w", err)
 		}
 
-		fmt.Printf("Attaching to ephemeral container %s...\n", containerName)
+		_, _ = fmt.Printf("Attaching to ephemeral container %s...\n", containerName)
 
 		// Setup terminal for interactive session
 		tsq := term.NewSizeQueue()
@@ -95,7 +102,7 @@ var debugCmd = &cobra.Command{
 
 		restore, err := term.RawModeSetter()
 		if err != nil {
-			fmt.Printf("Error setting raw mode: %v\n", err)
+			_, _ = fmt.Printf("Error setting raw mode: %v\n", err)
 		} else {
 			defer restore()
 		}

@@ -183,6 +183,7 @@ kubectl netdrill run my-troubleshooter
 | `--command`       |       | Command to run in the container                                | shell (interactive)               |
 | `--node-selector` |       | Node labels for pod scheduling (can be used multiple times)    |                                   |
 | `--image`         | `-i`  | Container image to use                                         | `ghcr.io/xenos76/netdrill:latest` |
+| `--image-pull-policy` |   | Image pull policy (`Always`, `IfNotPresent`, or `Never`)       | `IfNotPresent`                    |
 | `--dry-run`       |       | Print rendered manifest without sending (`none` or `client`)   | `none`                            |
 | `--output`        | `-o`  | Dry-run output format (`yaml` or `json`; defaults to `yaml`)   |                                   |
 

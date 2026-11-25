@@ -36,6 +36,11 @@ to AI clients. Use --owner to bind create/delete/exec to pods you own.`,
 	RunE: func(cmd *cobra.Command, _ []string) error {
 		ctx := cmd.Context()
 
+		pullPolicy, err := validateImagePullPolicy(ImagePullPolicy)
+		if err != nil {
+			return err
+		}
+
 		client, restConfig, err := k8s.ClientProvider(ConfigFlags)
 		if err != nil {
 			return fmt.Errorf("getting client: %w", err)
@@ -76,6 +81,7 @@ to AI clients. Use --owner to bind create/delete/exec to pods you own.`,
 			Config: restConfig,
 			Cfg: mcpsrv.Config{
 				Image:               podImage,
+				ImagePullPolicy:     pullPolicy,
 				DefaultNamespace:    namespace,
 				Owner:               owner,
 				ExecTimeout:         mcpExecTimeout,

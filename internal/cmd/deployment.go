@@ -35,6 +35,11 @@ Unlike 'run', this deployment is not automatically deleted.`,
 			return err
 		}
 
+		pullPolicy, err := validateImagePullPolicy(ImagePullPolicy)
+		if err != nil {
+			return err
+		}
+
 		deployName := "netdrill"
 		if len(args) > 0 {
 			deployName = args[0]
@@ -59,18 +64,19 @@ Unlike 'run', this deployment is not automatically deleted.`,
 
 		deployCfg := netdrill.DeploymentConfig{
 			PodConfig: netdrill.PodConfig{
-				Namespace:      namespace,
-				PodName:        deployName,
-				Image:          Image,
-				HostNetwork:    HostNetwork,
-				NodeSelector:   NodeSelector,
-				ServiceAccount: ServiceAccount,
-				Ports:          Ports,
-				EnvVars:        EnvVars,
-				CPURequest:     CPURequest,
-				MemoryRequest:  MemoryRequest,
-				CPULimit:       CPULimit,
-				MemoryLimit:    MemoryLimit,
+				Namespace:       namespace,
+				PodName:         deployName,
+				Image:           Image,
+				ImagePullPolicy: pullPolicy,
+				HostNetwork:     HostNetwork,
+				NodeSelector:    NodeSelector,
+				ServiceAccount:  ServiceAccount,
+				Ports:           Ports,
+				EnvVars:         EnvVars,
+				CPURequest:      CPURequest,
+				MemoryRequest:   MemoryRequest,
+				CPULimit:        CPULimit,
+				MemoryLimit:     MemoryLimit,
 			},
 			Replicas:      &Replicas,
 			Labels:        Labels,
@@ -93,7 +99,7 @@ Unlike 'run', this deployment is not automatically deleted.`,
 				_, _ = fmt.Fprintf(cmd.ErrOrStderr(), "Cloning operational settings from %s %s/%s...\n",
 					target.Kind, target.Namespace, target.Name)
 			} else {
-				fmt.Printf("Cloning operational settings from %s %s/%s...\n",
+				_, _ = fmt.Printf("Cloning operational settings from %s %s/%s...\n",
 					target.Kind, target.Namespace, target.Name)
 			}
 		}
@@ -109,16 +115,16 @@ Unlike 'run', this deployment is not automatically deleted.`,
 			return printDryRunObject(cmd.OutOrStdout(), deployment, format)
 		}
 
-		fmt.Printf("Creating deployment %s in namespace %s...\n", opts.PodName, opts.Namespace)
+		_, _ = fmt.Printf("Creating deployment %s in namespace %s...\n", opts.PodName, opts.Namespace)
 
 		_, err = k8s.CreateDeployment(ctx, client, opts)
 		if err != nil {
 			return fmt.Errorf("creating deployment: %w", err)
 		}
 
-		fmt.Printf("Deployment %s created successfully.\n", opts.PodName)
-		fmt.Printf("Use 'kubectl get pods -l app=%s' to find the pods.\n", appLabel)
-		fmt.Printf("Use 'kubectl delete deployment %s -n %s' to delete it.\n", opts.PodName, opts.Namespace)
+		_, _ = fmt.Printf("Deployment %s created successfully.\n", opts.PodName)
+		_, _ = fmt.Printf("Use 'kubectl get pods -l app=%s' to find the pods.\n", appLabel)
+		_, _ = fmt.Printf("Use 'kubectl delete deployment %s -n %s' to delete it.\n", opts.PodName, opts.Namespace)
 
 		return nil
 	},

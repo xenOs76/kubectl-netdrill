@@ -10,6 +10,8 @@ type PodConfig struct {
 	PodName string
 	// Image is the container image for the netdrill container.
 	Image string
+	// ImagePullPolicy controls when the container image is pulled (defaults to IfNotPresent).
+	ImagePullPolicy corev1.PullPolicy
 	// HostNetwork requests hostNetwork on the pod spec.
 	HostNetwork bool
 	// NodeSelector constrains scheduling to matching nodes.

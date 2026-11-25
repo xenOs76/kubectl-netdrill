@@ -49,6 +49,8 @@ type PodOptions struct {
 	PodName string
 	// Image is the container image for the netdrill container.
 	Image string
+	// ImagePullPolicy controls when the container image is pulled (defaults to IfNotPresent).
+	ImagePullPolicy corev1.PullPolicy
 	// HostNetwork requests hostNetwork on the pod spec.
 	HostNetwork bool
 	// Command overrides the container entrypoint when non-empty.
@@ -148,7 +150,7 @@ func BuildPod(opts PodOptions) (*corev1.Pod, error) {
 				{
 					Name:            netdrill.ContainerNetdrill,
 					Image:           opts.Image,
-					ImagePullPolicy: corev1.PullIfNotPresent,
+					ImagePullPolicy: resolvePullPolicy(opts.ImagePullPolicy),
 					Stdin:           true,
 					TTY:             true,
 					Command:         opts.Command,

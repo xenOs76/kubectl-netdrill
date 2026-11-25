@@ -22,6 +22,8 @@ type EphemeralOptions struct {
 	ContainerName string
 	// Image is the image for the ephemeral container.
 	Image string
+	// ImagePullPolicy controls when the ephemeral container image is pulled (defaults to IfNotPresent).
+	ImagePullPolicy corev1.PullPolicy
 	// TargetProcess is the target container name to share a PID namespace with.
 	TargetProcess string
 }
@@ -32,7 +34,7 @@ func BuildEphemeralContainer(opts EphemeralOptions) corev1.EphemeralContainer {
 		EphemeralContainerCommon: corev1.EphemeralContainerCommon{
 			Name:            opts.ContainerName,
 			Image:           opts.Image,
-			ImagePullPolicy: corev1.PullIfNotPresent,
+			ImagePullPolicy: resolvePullPolicy(opts.ImagePullPolicy),
 			Stdin:           true,
 			TTY:             true,
 		},

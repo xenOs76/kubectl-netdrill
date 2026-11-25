@@ -59,27 +59,38 @@ PowerShell:
 				return err
 			}
 
-			fmt.Println(`
+			_, err := fmt.Println(`
 # Additional completion bindings for direct binary invocations and aliases
 if [[ $(type -t compopt) = "builtin" ]]; then
     complete -o default -F __start_kubectl-netdrill ./dist/kubectl-netdrill dist/kubectl-netdrill knetdrill
 else
     complete -o default -o nospace -F __start_kubectl-netdrill ./dist/kubectl-netdrill dist/kubectl-netdrill knetdrill
 fi`)
+			if err != nil {
+				return err
+			}
 		case "zsh":
 			if err := cmd.Root().GenZshCompletion(os.Stdout); err != nil {
 				return err
 			}
 
-			fmt.Println("\ncompdef _kubectl-netdrill ./dist/kubectl-netdrill dist/kubectl-netdrill knetdrill")
+			_, err := fmt.Println(
+				"\ncompdef _kubectl-netdrill ./dist/kubectl-netdrill dist/kubectl-netdrill knetdrill",
+			)
+			if err != nil {
+				return err
+			}
 		case "fish":
 			if err := cmd.Root().GenFishCompletion(os.Stdout, true); err != nil {
 				return err
 			}
 
-			fmt.Println("\ncomplete -c ./dist/kubectl-netdrill -w kubectl-netdrill\n" +
+			_, err := fmt.Println("\ncomplete -c ./dist/kubectl-netdrill -w kubectl-netdrill\n" +
 				"complete -c dist/kubectl-netdrill -w kubectl-netdrill\n" +
 				"complete -c knetdrill -w kubectl-netdrill")
+			if err != nil {
+				return err
+			}
 		case "powershell":
 			return cmd.Root().GenPowerShellCompletionWithDesc(os.Stdout)
 		default:

@@ -26,6 +26,11 @@ var runCmd = &cobra.Command{
 			return err
 		}
 
+		pullPolicy, err := validateImagePullPolicy(ImagePullPolicy)
+		if err != nil {
+			return err
+		}
+
 		podName := "netdrill"
 		if len(args) > 0 {
 			podName = args[0]
@@ -37,12 +42,13 @@ var runCmd = &cobra.Command{
 		}
 
 		opts := k8s.PodOptions{
-			Namespace:    namespace,
-			PodName:      podName,
-			Image:        Image,
-			HostNetwork:  HostNetwork,
-			NodeSelector: NodeSelector,
-			Command:      Command,
+			Namespace:       namespace,
+			PodName:         podName,
+			Image:           Image,
+			ImagePullPolicy: pullPolicy,
+			HostNetwork:     HostNetwork,
+			NodeSelector:    NodeSelector,
+			Command:         Command,
 		}
 
 		if isDryRun {
@@ -71,7 +77,7 @@ var runCmd = &cobra.Command{
 			return fmt.Errorf("getting client: %w", err)
 		}
 
-		fmt.Printf("Creating pod %s in namespace %s...\n", podName, namespace)
+		_, _ = fmt.Printf("Creating pod %s in namespace %s...\n", podName, namespace)
 
 		_, err = k8s.CreatePod(ctx, client, opts)
 		if err != nil {
@@ -80,20 +86,20 @@ var runCmd = &cobra.Command{
 
 		// Ensure pod is deleted on exit
 		defer func() {
-			fmt.Printf("\nDeleting pod %s...\n", podName)
+			_, _ = fmt.Printf("\nDeleting pod %s...\n", podName)
 
 			if err := k8s.DeletePod(context.Background(), client, namespace, podName); err != nil {
-				fmt.Printf("Error deleting pod: %v\n", err)
+				_, _ = fmt.Printf("Error deleting pod: %v\n", err)
 			}
 		}()
 
-		fmt.Printf("Waiting for pod %s to be ready...\n", podName)
+		_, _ = fmt.Printf("Waiting for pod %s to be ready...\n", podName)
 
 		if err := k8s.WaitForPodReady(ctx, client, namespace, podName); err != nil {
 			return fmt.Errorf("waiting for pod: %w", err)
 		}
 
-		fmt.Printf("Attaching to pod %s (container netdrill)...\n", podName)
+		_, _ = fmt.Printf("Attaching to pod %s (container netdrill)...\n", podName)
 
 		// Setup terminal for interactive session
 		tsq := term.NewSizeQueue()
@@ -103,7 +109,7 @@ var runCmd = &cobra.Command{
 
 		restore, err := term.RawModeSetter()
 		if err != nil {
-			fmt.Printf("Error setting raw mode: %v\n", err)
+			_, _ = fmt.Printf("Error setting raw mode: %v\n", err)
 		} else {
 			defer restore()
 		}
