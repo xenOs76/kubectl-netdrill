@@ -12,6 +12,9 @@ on:
       - "*.go"
       - "go.*"
 
+env:
+  TRIVY_VERSION: v0.76.2
+
 jobs:
   go_tests:
     runs-on: ubuntu-latest
@@ -29,16 +32,30 @@ jobs:
         uses: actions/checkout@v5
 
       - name: Run Trivy vulnerability scanner in repo mode
-        uses: aquasecurity/trivy-action@v0.35.0
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           scan-type: "fs"
+          scan-ref: "."
+          ignore-unfixed: true
+          format: "table"
+          exit-code: "1"
+          severity: "HIGH,CRITICAL"
+          version: ${{ env.TRIVY_VERSION }}
+
+      - name: Generate Trivy SARIF report
+        if: always() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: "fs"
+          scan-ref: "."
           ignore-unfixed: true
           format: "sarif"
           output: "trivy-results.sarif"
-          severity: "CRITICAL"
+          version: ${{ env.TRIVY_VERSION }}
 
       - name: Upload Trivy scan results to GitHub Security tab
-        uses: github/codeql-action/upload-sarif@v4
+        if: always() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+        uses: github/codeql-action/upload-sarif@1bd86f2fdb4b86187fa4059f16f31a3202acc9ea # v4.39.4
         with:
           sarif_file: "trivy-results.sarif"
 
