@@ -21,8 +21,10 @@ const (
 	// SecureDefaultMemoryLimit is the default memory limit applied by --secure when unset.
 	SecureDefaultMemoryLimit = "256Mi"
 
-	secureTmpVolumeName = "tmp"
-	secureTmpMountPath  = "/tmp"
+	secureTmpVolumeName  = "tmp"
+	secureTmpMountPath   = "/tmp"
+	secureHomeVolumeName = "home"
+	secureHomeMountPath  = "/root"
 )
 
 // ApplySecurePodConfig applies Kubernetes Restricted Pod Security Standards and
@@ -43,7 +45,8 @@ func ApplySecurePodConfig(cfg *netdrill.PodConfig) error {
 		cfg.AutomountServiceAccountToken = ptr.To(false)
 	}
 
-	ensureSecureTmpMount(cfg)
+	ensureSecureEmptyDirMount(cfg, secureTmpVolumeName, secureTmpMountPath)
+	ensureSecureEmptyDirMount(cfg, secureHomeVolumeName, secureHomeMountPath)
 	ensureSecureHomeEnv(cfg)
 	applySecureResourceDefaults(cfg)
 
@@ -134,20 +137,20 @@ func applySecureContainerSecurityContext(cfg *netdrill.PodConfig) {
 	cfg.ContainerSecurityContext = csc
 }
 
-func ensureSecureTmpMount(cfg *netdrill.PodConfig) {
-	hasTmpMount := slices.ContainsFunc(cfg.VolumeMounts, func(m corev1.VolumeMount) bool {
-		return m.MountPath == secureTmpMountPath
+func ensureSecureEmptyDirMount(cfg *netdrill.PodConfig, volumeName, mountPath string) {
+	hasMount := slices.ContainsFunc(cfg.VolumeMounts, func(m corev1.VolumeMount) bool {
+		return m.MountPath == mountPath
 	})
-	if hasTmpMount {
+	if hasMount {
 		return
 	}
 
-	hasTmpVol := slices.ContainsFunc(cfg.Volumes, func(v corev1.Volume) bool {
-		return v.Name == secureTmpVolumeName
+	hasVol := slices.ContainsFunc(cfg.Volumes, func(v corev1.Volume) bool {
+		return v.Name == volumeName
 	})
-	if !hasTmpVol {
+	if !hasVol {
 		cfg.Volumes = append(cfg.Volumes, corev1.Volume{
-			Name: secureTmpVolumeName,
+			Name: volumeName,
 			VolumeSource: corev1.VolumeSource{
 				EmptyDir: &corev1.EmptyDirVolumeSource{},
 			},
@@ -155,8 +158,8 @@ func ensureSecureTmpMount(cfg *netdrill.PodConfig) {
 	}
 
 	cfg.VolumeMounts = append(cfg.VolumeMounts, corev1.VolumeMount{
-		Name:      secureTmpVolumeName,
-		MountPath: secureTmpMountPath,
+		Name:      volumeName,
+		MountPath: mountPath,
 	})
 }
 
@@ -176,7 +179,7 @@ func ensureSecureHomeEnv(cfg *netdrill.PodConfig) {
 		cfg.EnvVars = make(map[string]string)
 	}
 
-	cfg.EnvVars["HOME"] = secureTmpMountPath
+	cfg.EnvVars["HOME"] = secureHomeMountPath
 }
 
 func applySecureResourceDefaults(cfg *netdrill.PodConfig) {

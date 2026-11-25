@@ -42,10 +42,12 @@ func TestApplySecurePodConfig_Defaults(t *testing.T) {
 	require.NotNil(t, c.SecurityContext.Capabilities)
 	assert.Equal(t, []corev1.Capability{"ALL"}, c.SecurityContext.Capabilities.Drop)
 
-	assert.Contains(t, c.Env, corev1.EnvVar{Name: "HOME", Value: "/tmp"})
+	assert.Contains(t, c.Env, corev1.EnvVar{Name: "HOME", Value: "/root"})
 	assert.Contains(t, c.VolumeMounts, corev1.VolumeMount{Name: "tmp", MountPath: "/tmp"})
-	assert.Len(t, pod.Spec.Volumes, 1)
+	assert.Contains(t, c.VolumeMounts, corev1.VolumeMount{Name: "home", MountPath: "/root"})
+	assert.Len(t, pod.Spec.Volumes, 2)
 	assert.NotNil(t, pod.Spec.Volumes[0].EmptyDir)
+	assert.NotNil(t, pod.Spec.Volumes[1].EmptyDir)
 
 	assert.Equal(t, SecureDefaultCPURequest, c.Resources.Requests.Cpu().String())
 	assert.Equal(t, SecureDefaultMemoryRequest, c.Resources.Requests.Memory().String())
