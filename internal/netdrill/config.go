@@ -52,6 +52,8 @@ type PodConfig struct {
 	SecurityContext *corev1.PodSecurityContext
 	// ContainerSecurityContext specifies container-level security context.
 	ContainerSecurityContext *corev1.SecurityContext
+	// AutomountServiceAccountToken controls whether the ServiceAccount token is mounted.
+	AutomountServiceAccountToken *bool
 	// PriorityClassName specifies the priority class for scheduling.
 	PriorityClassName string
 	// Volumes are volumes mounted by the pod.

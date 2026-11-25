@@ -1,3 +1,9 @@
+## Unreleased
+
+### Feat
+
+    add --secure flag to run, pod, and deployment commands (with MCP parity) to enforce Kubernetes Restricted Pod Security Standards and hardening defaults
+
 ## 0.3.0 (2026-11-25)
 
 ### Feat

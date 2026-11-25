@@ -29,6 +29,8 @@ netdrill_deployment_create):
   YAML with nodeName to bypass netdrill.
 - serviceAccount — set for EKS IRSA (IAM role via ServiceAccount).
 - env, ports, hostNetwork — match CLI --env / --port / --host-network.
+- secure — apply Restricted PSS security hardening (non-root UID 65532,
+  read-only rootfs, drop ALL caps, RuntimeDefault seccomp, default resources).
 - cpuRequest, memoryRequest, cpuLimit, memoryLimit — container resource requests/limits.
 - deployment only: replicas.
 
