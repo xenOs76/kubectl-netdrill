@@ -183,6 +183,13 @@ kubectl netdrill run my-troubleshooter
 | `--command`       |       | Command to run in the container                                | shell (interactive)               |
 | `--node-selector` |       | Node labels for pod scheduling (can be used multiple times)    |                                   |
 | `--image`         | `-i`  | Container image to use                                         | `ghcr.io/xenos76/netdrill:latest` |
+| `--image-pull-policy` |   | Image pull policy (`Always`, `IfNotPresent`, or `Never`)       | `IfNotPresent`                    |
+| `--dry-run`       |       | Print rendered manifest without sending (`none` or `client`)   | `none`                            |
+| `--output`        | `-o`  | Dry-run output format (`yaml` or `json`; defaults to `yaml`)   |                                   |
+| `--verify`        |       | Verify container image Cosign signature (warns/skips if unsigned) | `true`                         |
+| `--cosign-key`    |       | Path to Cosign public key (or inline PEM) for static-key verification |                            |
+| `--cosign-identity` |     | Expected Cosign certificate identity (SAN) or regexp (keyless OIDC) |                              |
+| `--cosign-oidc-issuer` |  | Expected Cosign OIDC issuer URL or regexp (keyless OIDC)       |                                   |
 
 #### Examples
 
@@ -216,6 +223,12 @@ Run a custom command instead of an interactive shell:
 kubectl netdrill run --command "ip addr show"
 ```
 
+Preview the rendered Pod manifest in YAML without creating it:
+
+```bash
+kubectl netdrill run --host-network --dry-run=client -o yaml
+```
+
 </details>
 
 ### kubectl netdrill pod
@@ -246,6 +259,13 @@ kubectl netdrill pod my-persistent-troubleshooter
 | `--host-network`    |       | Use the host's network namespace                     | `false`                           |
 | `--node-selector`   |       | Node labels for pod scheduling (can be used multiple times)  |                                   |
 | `--image`           | `-i`  | Container image to use                               | `ghcr.io/xenos76/netdrill:latest` |
+| `--image-pull-policy` |     | Image pull policy (`Always`, `IfNotPresent`, or `Never`) | `IfNotPresent`                |
+| `--dry-run`         |       | Print rendered manifest without sending (`none` or `client`) | `none`                    |
+| `--output`          | `-o`  | Dry-run output format (`yaml` or `json`; defaults to `yaml`) |                           |
+| `--verify`          |       | Verify container image Cosign signature (warns/skips if unsigned) | `true`               |
+| `--cosign-key`      |       | Path to Cosign public key (or inline PEM) for static-key verification |                  |
+| `--cosign-identity` |       | Expected Cosign certificate identity (SAN) or regexp (keyless OIDC) |                    |
+| `--cosign-oidc-issuer` |    | Expected Cosign OIDC issuer URL or regexp (keyless OIDC)     |                           |
 
 #### Examples
 
@@ -302,6 +322,13 @@ Attach to an existing persistent pod:
 kubectl exec -it my-persistent-troubleshooter -n default -- /bin/bash
 ```
 
+Preview the rendered Pod manifest in YAML or JSON without creating it:
+
+```bash
+kubectl netdrill pod my-pod --host-network --dry-run=client -o yaml
+kubectl netdrill pod my-pod --same-as deployment/backend-api --dry-run=client -o json
+```
+
 </details>
 
 ### kubectl netdrill deployment
@@ -333,6 +360,13 @@ kubectl netdrill deployment my-deployment
 | `--host-network`    |       | Use the host's network namespace                     | `false`                           |
 | `--node-selector`   |       | Node labels for pod scheduling (can be used multiple times)  |                                   |
 | `--image`           | `-i`  | Container image to use                               | `ghcr.io/xenos76/netdrill:latest` |
+| `--image-pull-policy` |     | Image pull policy (`Always`, `IfNotPresent`, or `Never`) | `IfNotPresent`                |
+| `--dry-run`         |       | Print rendered manifest without sending (`none` or `client`) | `none`                    |
+| `--output`          | `-o`  | Dry-run output format (`yaml` or `json`; defaults to `yaml`) |                           |
+| `--verify`          |       | Verify container image Cosign signature (warns/skips if unsigned) | `true`               |
+| `--cosign-key`      |       | Path to Cosign public key (or inline PEM) for static-key verification |                  |
+| `--cosign-identity` |       | Expected Cosign certificate identity (SAN) or regexp (keyless OIDC) |                    |
+| `--cosign-oidc-issuer` |    | Expected Cosign OIDC issuer URL or regexp (keyless OIDC)     |                           |
 
 #### Examples
 
@@ -360,6 +394,12 @@ Create a deployment cloning settings from an existing deployment with overridden
 kubectl netdrill deployment debug-api --same-as deployment/api-server --replicas 1
 ```
 
+Preview the rendered Deployment manifest without creating it:
+
+```bash
+kubectl netdrill deployment debug-api --replicas 2 --dry-run=client -o yaml
+```
+
 </details>
 
 ### kubectl netdrill debug
@@ -385,6 +425,13 @@ kubectl netdrill debug <pod-name> --target <container-name>
 | ---------- | ----- | ------------------------------------------ | --------------------------------- |
 | `--target` |       | Container name to share PID namespace with |                                   |
 | `--image`  | `-i`  | Container image to use                     | `ghcr.io/xenos76/netdrill:latest` |
+| `--image-pull-policy` | | Image pull policy (`Always`, `IfNotPresent`, or `Never`) | `IfNotPresent`    |
+| `--dry-run` |      | Print rendered Pod with ephemeral container without updating (`none` or `client`) | `none` |
+| `--output` | `-o`  | Dry-run output format (`yaml` or `json`; defaults to `yaml`) |               |
+| `--verify` |       | Verify container image Cosign signature (warns/skips if unsigned) | `true`    |
+| `--cosign-key` |   | Path to Cosign public key (or inline PEM) for static-key verification |       |
+| `--cosign-identity` | | Expected Cosign certificate identity (SAN) or regexp (keyless OIDC) |         |
+| `--cosign-oidc-issuer` | | Expected Cosign OIDC issuer URL or regexp (keyless OIDC) |                |
 
 #### Examples
 
@@ -399,6 +446,12 @@ container):
 
 ```bash
 kubectl netdrill debug my-app-pod --target my-app-container
+```
+
+Preview the Pod with the ephemeral container injected without mutating the cluster:
+
+```bash
+kubectl netdrill debug my-app-pod --target my-app-container --dry-run=client -o yaml
 ```
 
 </details>

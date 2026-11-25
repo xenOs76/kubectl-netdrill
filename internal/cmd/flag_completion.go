@@ -789,3 +789,39 @@ func completeSameAsContainer(cmd *cobra.Command, _ []string, toComplete string) 
 
 	return suggestions, cobra.ShellCompDirectiveNoFileComp
 }
+
+// completeDryRun provides static autocompletion suggestions for --dry-run.
+func completeDryRun(_ *cobra.Command, _ []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	return filterPrefix([]string{dryRunNone, dryRunClient}, toComplete), cobra.ShellCompDirectiveNoFileComp
+}
+
+// completeOutput provides static autocompletion suggestions for -o/--output.
+func completeOutput(_ *cobra.Command, _ []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	return filterPrefix([]string{outputYAML, outputJSON}, toComplete), cobra.ShellCompDirectiveNoFileComp
+}
+
+// completeImagePullPolicy provides static autocompletion suggestions for --image-pull-policy.
+func completeImagePullPolicy(_ *cobra.Command, _ []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	return filterPrefix([]string{"Always", "IfNotPresent", "Never"}, toComplete), cobra.ShellCompDirectiveNoFileComp
+}
+
+// completeCosignIdentity provides sample autocompletion suggestions for --cosign-identity.
+func completeCosignIdentity(_ *cobra.Command, _ []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	samples := []string{
+		`^https://github\.com/(?i:xenos76)/netdrill/`,
+		`^https://github\.com/<org>/<repo>/\.github/workflows/`,
+	}
+
+	return filterPrefix(samples, toComplete), cobra.ShellCompDirectiveNoFileComp
+}
+
+// completeCosignOIDCIssuer provides sample autocompletion suggestions for --cosign-oidc-issuer.
+func completeCosignOIDCIssuer(_ *cobra.Command, _ []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	samples := []string{
+		"https://token.actions.githubusercontent.com",
+		"https://accounts.google.com",
+		"https://gitlab.com",
+	}
+
+	return filterPrefix(samples, toComplete), cobra.ShellCompDirectiveNoFileComp
+}

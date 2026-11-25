@@ -20,10 +20,51 @@ var runCmd = &cobra.Command{
 	Short: "Run an ephemeral pod for troubleshooting",
 	Long:  `Create an ephemeral pod with the netdrill image and attach to it.`,
 	Args:  cobra.MaximumNArgs(1),
-	RunE: func(_ *cobra.Command, args []string) error {
+	RunE: func(cmd *cobra.Command, args []string) error {
+		isDryRun, format, err := validateDryRunOutput(DryRun, Output)
+		if err != nil {
+			return err
+		}
+
+		pullPolicy, err := validateImagePullPolicy(ImagePullPolicy)
+		if err != nil {
+			return err
+		}
+
 		podName := "netdrill"
 		if len(args) > 0 {
 			podName = args[0]
+		}
+
+		namespace, _, err := ConfigFlags.ToRawKubeConfigLoader().Namespace()
+		if err != nil {
+			return fmt.Errorf("getting namespace: %w", err)
+		}
+
+		opts := k8s.PodOptions{
+			Namespace:       namespace,
+			PodName:         podName,
+			Image:           Image,
+			ImagePullPolicy: pullPolicy,
+			HostNetwork:     HostNetwork,
+			NodeSelector:    NodeSelector,
+			Command:         Command,
+		}
+
+		verifiedImg, err := verifyAndPinImage(cmd.Context(), opts.Image, cmd.ErrOrStderr())
+		if err != nil {
+			return err
+		}
+
+		opts.Image = verifiedImg
+
+		if isDryRun {
+			pod, err := k8s.BuildPod(opts)
+			if err != nil {
+				return fmt.Errorf("building pod: %w", err)
+			}
+
+			return printDryRunObject(cmd.OutOrStdout(), pod, format)
 		}
 
 		ctx, cancel := context.WithCancel(context.Background())
@@ -43,21 +84,7 @@ var runCmd = &cobra.Command{
 			return fmt.Errorf("getting client: %w", err)
 		}
 
-		namespace, _, err := ConfigFlags.ToRawKubeConfigLoader().Namespace()
-		if err != nil {
-			return fmt.Errorf("getting namespace: %w", err)
-		}
-
-		opts := k8s.PodOptions{
-			Namespace:    namespace,
-			PodName:      podName,
-			Image:        Image,
-			HostNetwork:  HostNetwork,
-			NodeSelector: NodeSelector,
-			Command:      Command,
-		}
-
-		fmt.Printf("Creating pod %s in namespace %s...\n", podName, namespace)
+		_, _ = fmt.Printf("Creating pod %s in namespace %s...\n", podName, namespace)
 
 		_, err = k8s.CreatePod(ctx, client, opts)
 		if err != nil {
@@ -66,20 +93,20 @@ var runCmd = &cobra.Command{
 
 		// Ensure pod is deleted on exit
 		defer func() {
-			fmt.Printf("\nDeleting pod %s...\n", podName)
+			_, _ = fmt.Printf("\nDeleting pod %s...\n", podName)
 
 			if err := k8s.DeletePod(context.Background(), client, namespace, podName); err != nil {
-				fmt.Printf("Error deleting pod: %v\n", err)
+				_, _ = fmt.Printf("Error deleting pod: %v\n", err)
 			}
 		}()
 
-		fmt.Printf("Waiting for pod %s to be ready...\n", podName)
+		_, _ = fmt.Printf("Waiting for pod %s to be ready...\n", podName)
 
 		if err := k8s.WaitForPodReady(ctx, client, namespace, podName); err != nil {
 			return fmt.Errorf("waiting for pod: %w", err)
 		}
 
-		fmt.Printf("Attaching to pod %s (container netdrill)...\n", podName)
+		_, _ = fmt.Printf("Attaching to pod %s (container netdrill)...\n", podName)
 
 		// Setup terminal for interactive session
 		tsq := term.NewSizeQueue()
@@ -89,7 +116,7 @@ var runCmd = &cobra.Command{
 
 		restore, err := term.RawModeSetter()
 		if err != nil {
-			fmt.Printf("Error setting raw mode: %v\n", err)
+			_, _ = fmt.Printf("Error setting raw mode: %v\n", err)
 		} else {
 			defer restore()
 		}

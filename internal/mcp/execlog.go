@@ -23,29 +23,29 @@ func formatContainerExecLog(command []string, stdout, stderr string, exitCode in
 
 	var b strings.Builder
 
-	b.WriteString("--- netdrill-mcp exec ---\n")
+	_, _ = b.WriteString("--- netdrill-mcp exec ---\n")
 	fmt.Fprintf(&b, "command: %s\n", cmdJSON)
 	fmt.Fprintf(&b, "exit: %d\n", exitCode)
 
 	if stdout != "" {
-		b.WriteString("--- stdout ---\n")
-		b.WriteString(stdout)
+		_, _ = b.WriteString("--- stdout ---\n")
+		_, _ = b.WriteString(stdout)
 
 		if !strings.HasSuffix(stdout, "\n") {
-			b.WriteByte('\n')
+			_ = b.WriteByte('\n')
 		}
 	}
 
 	if stderr != "" {
-		b.WriteString("--- stderr ---\n")
-		b.WriteString(stderr)
+		_, _ = b.WriteString("--- stderr ---\n")
+		_, _ = b.WriteString(stderr)
 
 		if !strings.HasSuffix(stderr, "\n") {
-			b.WriteByte('\n')
+			_ = b.WriteByte('\n')
 		}
 	}
 
-	b.WriteString("--- end ---\n")
+	_, _ = b.WriteString("--- end ---\n")
 
 	return b.String()
 }

@@ -2,7 +2,10 @@
 package cmd
 
 import (
+	"fmt"
+
 	"github.com/spf13/cobra"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 )
 
@@ -13,6 +16,8 @@ var (
 	DefaultImage = "ghcr.io/xenos76/netdrill:latest"
 	// Image is the container image to use.
 	Image string
+	// ImagePullPolicy controls when the container image is pulled.
+	ImagePullPolicy string
 	// NodeSelector defines labels for scheduling pods.
 	NodeSelector map[string]string
 	// Version is the application version.
@@ -31,6 +36,18 @@ var (
 	SameAs string
 	// SameAsContainer specifies which container in the target workload to clone from.
 	SameAsContainer string
+	// DryRun controls client-side dry-run rendering ("none" or "client").
+	DryRun string
+	// Output controls the manifest format when --dry-run=client is set ("yaml" or "json").
+	Output string
+	// VerifyImage controls whether Cosign signature verification runs before deploying.
+	VerifyImage bool
+	// CosignKey is a file path or inline PEM public key for static-key Cosign verification.
+	CosignKey string
+	// CosignIdentity is the expected certificate SAN or regexp for keyless OIDC verification.
+	CosignIdentity string
+	// CosignOIDCIssuer is the expected OIDC issuer URL or regexp for keyless OIDC verification.
+	CosignOIDCIssuer string
 )
 
 var rootCmd = &cobra.Command{
@@ -59,7 +76,65 @@ func init() {
 		DefaultImage,
 		"The netdrill image to use",
 	)
+	rootCmd.PersistentFlags().StringVar(&ImagePullPolicy,
+		"image-pull-policy",
+		string(corev1.PullIfNotPresent),
+		"Image pull policy (Always, IfNotPresent, or Never)",
+	)
+	rootCmd.PersistentFlags().StringVar(&DryRun,
+		"dry-run",
+		dryRunNone,
+		"Must be \"none\" or \"client\". If client strategy, only print the object "+
+			"that would be sent, without sending it",
+	)
+	rootCmd.PersistentFlags().Lookup("dry-run").NoOptDefVal = dryRunClient
+	rootCmd.PersistentFlags().StringVarP(&Output,
+		"output",
+		"o",
+		"",
+		"Output format for dry-run manifest (yaml or json)",
+	)
+	rootCmd.PersistentFlags().BoolVar(&VerifyImage,
+		"verify",
+		true,
+		"Verify container image Cosign signature before deploying (warns and skips if unsigned)",
+	)
+	rootCmd.PersistentFlags().StringVar(&CosignKey,
+		"cosign-key",
+		"",
+		"Path to Cosign public key (or inline PEM) for static-key verification",
+	)
+	rootCmd.PersistentFlags().StringVar(&CosignIdentity,
+		"cosign-identity",
+		"",
+		"Expected Cosign certificate identity (SAN) or regexp for keyless OIDC verification",
+	)
+	rootCmd.PersistentFlags().StringVar(&CosignOIDCIssuer,
+		"cosign-oidc-issuer",
+		"",
+		"Expected Cosign OIDC issuer URL or regexp for keyless OIDC verification",
+	)
 
 	rootCmd.AddCommand(completionCmd)
 	_ = rootCmd.RegisterFlagCompletionFunc("namespace", completeNamespace)
+	_ = rootCmd.RegisterFlagCompletionFunc("image-pull-policy", completeImagePullPolicy)
+	_ = rootCmd.RegisterFlagCompletionFunc("dry-run", completeDryRun)
+	_ = rootCmd.RegisterFlagCompletionFunc("output", completeOutput)
+	_ = rootCmd.RegisterFlagCompletionFunc("cosign-identity", completeCosignIdentity)
+	_ = rootCmd.RegisterFlagCompletionFunc("cosign-oidc-issuer", completeCosignOIDCIssuer)
+}
+
+// validateImagePullPolicy validates --image-pull-policy and returns the corresponding corev1.PullPolicy.
+func validateImagePullPolicy(policy string) (corev1.PullPolicy, error) {
+	switch corev1.PullPolicy(policy) {
+	case "":
+		return corev1.PullIfNotPresent, nil
+	case corev1.PullAlways, corev1.PullIfNotPresent, corev1.PullNever:
+		return corev1.PullPolicy(policy), nil
+	default:
+		return "", fmt.Errorf(
+			"invalid --image-pull-policy value %q: must be Always, IfNotPresent, or Never",
+			policy,
+		)
+	}
 }

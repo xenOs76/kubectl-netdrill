@@ -36,6 +36,11 @@ to AI clients. Use --owner to bind create/delete/exec to pods you own.`,
 	RunE: func(cmd *cobra.Command, _ []string) error {
 		ctx := cmd.Context()
 
+		pullPolicy, err := validateImagePullPolicy(ImagePullPolicy)
+		if err != nil {
+			return err
+		}
+
 		client, restConfig, err := k8s.ClientProvider(ConfigFlags)
 		if err != nil {
 			return fmt.Errorf("getting client: %w", err)
@@ -71,11 +76,34 @@ to AI clients. Use --owner to bind create/delete/exec to pods you own.`,
 			}
 		}
 
+		if VerifyImage {
+			verifyCtx, cancel := context.WithTimeout(ctx, verifyTimeout)
+			defer cancel()
+
+			res, err := verifyImageFn(verifyCtx, image.VerifyOptions{
+				Image:      podImage,
+				PublicKey:  CosignKey,
+				Identity:   CosignIdentity,
+				OIDCIssuer: CosignOIDCIssuer,
+			})
+			if err != nil {
+				return fmt.Errorf("cosign verification failed for %s (use --verify=false to skip): %w", podImage, err)
+			}
+
+			if res.Status == image.VerifyStatusSkippedMissing {
+				slog.Warn("image has no cosign signatures; skipping verification", "image", podImage)
+			} else {
+				slog.Info("verified cosign signature", "image", podImage, "digest", res.Digest)
+				podImage = res.ResolvedRef
+			}
+		}
+
 		deps := &mcpsrv.Deps{
 			Client: client,
 			Config: restConfig,
 			Cfg: mcpsrv.Config{
 				Image:               podImage,
+				ImagePullPolicy:     pullPolicy,
 				DefaultNamespace:    namespace,
 				Owner:               owner,
 				ExecTimeout:         mcpExecTimeout,

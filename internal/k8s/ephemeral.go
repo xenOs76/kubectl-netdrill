@@ -22,22 +22,19 @@ type EphemeralOptions struct {
 	ContainerName string
 	// Image is the image for the ephemeral container.
 	Image string
+	// ImagePullPolicy controls when the ephemeral container image is pulled (defaults to IfNotPresent).
+	ImagePullPolicy corev1.PullPolicy
 	// TargetProcess is the target container name to share a PID namespace with.
 	TargetProcess string
 }
 
-// AddEphemeralContainer adds an ephemeral container to an existing Pod.
-func AddEphemeralContainer(ctx context.Context, client kubernetes.Interface, opts EphemeralOptions) error {
-	pod, err := client.CoreV1().Pods(opts.Namespace).Get(ctx, opts.PodName, metav1.GetOptions{})
-	if err != nil {
-		return err
-	}
-
+// BuildEphemeralContainer constructs an EphemeralContainer spec from opts.
+func BuildEphemeralContainer(opts EphemeralOptions) corev1.EphemeralContainer {
 	ephemeralContainer := corev1.EphemeralContainer{
 		EphemeralContainerCommon: corev1.EphemeralContainerCommon{
 			Name:            opts.ContainerName,
 			Image:           opts.Image,
-			ImagePullPolicy: corev1.PullIfNotPresent,
+			ImagePullPolicy: resolvePullPolicy(opts.ImagePullPolicy),
 			Stdin:           true,
 			TTY:             true,
 		},
@@ -47,7 +44,27 @@ func AddEphemeralContainer(ctx context.Context, client kubernetes.Interface, opt
 		ephemeralContainer.TargetContainerName = opts.TargetProcess
 	}
 
-	pod.Spec.EphemeralContainers = append(pod.Spec.EphemeralContainers, ephemeralContainer)
+	return ephemeralContainer
+}
+
+// BuildDebugPod fetches the target Pod and appends the ephemeral container without updating the cluster.
+func BuildDebugPod(ctx context.Context, client kubernetes.Interface, opts EphemeralOptions) (*corev1.Pod, error) {
+	pod, err := client.CoreV1().Pods(opts.Namespace).Get(ctx, opts.PodName, metav1.GetOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	pod.Spec.EphemeralContainers = append(pod.Spec.EphemeralContainers, BuildEphemeralContainer(opts))
+
+	return pod, nil
+}
+
+// AddEphemeralContainer adds an ephemeral container to an existing Pod.
+func AddEphemeralContainer(ctx context.Context, client kubernetes.Interface, opts EphemeralOptions) error {
+	pod, err := BuildDebugPod(ctx, client, opts)
+	if err != nil {
+		return err
+	}
 
 	_, err = client.CoreV1().Pods(opts.Namespace).UpdateEphemeralContainers(
 		ctx, opts.PodName, pod, metav1.UpdateOptions{})
