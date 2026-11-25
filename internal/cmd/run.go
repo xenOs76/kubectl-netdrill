@@ -51,6 +51,13 @@ var runCmd = &cobra.Command{
 			Command:         Command,
 		}
 
+		verifiedImg, err := verifyAndPinImage(cmd.Context(), opts.Image, cmd.ErrOrStderr())
+		if err != nil {
+			return err
+		}
+
+		opts.Image = verifiedImg
+
 		if isDryRun {
 			pod, err := k8s.BuildPod(opts)
 			if err != nil {
@@ -62,13 +69,6 @@ var runCmd = &cobra.Command{
 
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
-
-		verifiedImg, err := verifyAndPinImage(ctx, opts.Image, cmd.ErrOrStderr())
-		if err != nil {
-			return err
-		}
-
-		opts.Image = verifiedImg
 
 		// Handle termination signals
 		sigChan := make(chan os.Signal, 1)

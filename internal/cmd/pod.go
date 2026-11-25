@@ -80,6 +80,13 @@ var podCmd = &cobra.Command{
 
 		opts := k8s.PodOptionsFromConfig(cfg)
 
+		verifiedImg, err := verifyAndPinImage(ctx, opts.Image, cmd.ErrOrStderr())
+		if err != nil {
+			return err
+		}
+
+		opts.Image = verifiedImg
+
 		if isDryRun {
 			pod, err := k8s.BuildPod(opts)
 			if err != nil {
@@ -88,13 +95,6 @@ var podCmd = &cobra.Command{
 
 			return printDryRunObject(cmd.OutOrStdout(), pod, format)
 		}
-
-		verifiedImg, err := verifyAndPinImage(ctx, opts.Image, cmd.ErrOrStderr())
-		if err != nil {
-			return err
-		}
-
-		opts.Image = verifiedImg
 
 		_, _ = fmt.Printf("Creating pod %s in namespace %s...\n", cfg.PodName, cfg.Namespace)
 

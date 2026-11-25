@@ -69,6 +69,13 @@ var debugCmd = &cobra.Command{
 			TargetProcess:   TargetContainer,
 		}
 
+		verifiedImg, err := verifyAndPinImage(ctx, opts.Image, cmd.ErrOrStderr())
+		if err != nil {
+			return err
+		}
+
+		opts.Image = verifiedImg
+
 		if isDryRun {
 			pod, err := k8s.BuildDebugPod(ctx, client, opts)
 			if err != nil {
@@ -77,13 +84,6 @@ var debugCmd = &cobra.Command{
 
 			return printDryRunObject(cmd.OutOrStdout(), pod, format)
 		}
-
-		verifiedImg, err := verifyAndPinImage(ctx, opts.Image, cmd.ErrOrStderr())
-		if err != nil {
-			return err
-		}
-
-		opts.Image = verifiedImg
 
 		_, _ = fmt.Printf("Adding ephemeral container %s to pod %s in namespace %s...\n",
 			containerName, podName, namespace)

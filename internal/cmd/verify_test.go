@@ -145,6 +145,42 @@ func TestPodCommand_VerifyIntegration(t *testing.T) {
 	assert.Contains(t, err.Error(), "cosign verification failed")
 }
 
+func TestPodCommand_DryRunVerifiesAndPinsDigest(t *testing.T) {
+	resetCmdState()
+
+	origProvider := k8s.ClientProvider
+	origVerifier := verifyImageFn
+
+	t.Cleanup(func() {
+		k8s.ClientProvider = origProvider
+		verifyImageFn = origVerifier
+
+		resetCmdState()
+	})
+
+	k8s.ClientProvider = func(_ *genericclioptions.ConfigFlags) (kubernetes.Interface, *rest.Config, error) {
+		t.Fatal("ClientProvider should not be called for client-side dry-run")
+		return nil, nil, nil
+	}
+
+	verifyImageFn = func(_ context.Context, _ image.VerifyOptions) (*image.VerifyResult, error) {
+		return &image.VerifyResult{
+			Status:      image.VerifyStatusVerified,
+			ResolvedRef: "ghcr.io/xenos76/netdrill@sha256:deadbeef",
+			Digest:      "sha256:deadbeef",
+		}, nil
+	}
+
+	var outBuf, errBuf bytes.Buffer
+	rootCmd.SetOut(&outBuf)
+	rootCmd.SetErr(&errBuf)
+	rootCmd.SetArgs([]string{"pod", "test-pod", "--dry-run=client", "-o", "yaml"})
+
+	require.NoError(t, rootCmd.Execute())
+	assert.Contains(t, outBuf.String(), "ghcr.io/xenos76/netdrill@sha256:deadbeef")
+	assert.Contains(t, errBuf.String(), "Verified cosign signature")
+}
+
 func TestCosignFlagCompletions(t *testing.T) {
 	ids, dir := completeCosignIdentity(nil, nil, "")
 	assert.Equal(t, cobra.ShellCompDirectiveNoFileComp, dir)
