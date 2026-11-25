@@ -110,12 +110,21 @@ var podCmd = &cobra.Command{
 		}
 
 		_, _ = fmt.Printf("Pod %s created successfully.\n", cfg.PodName)
-		_, _ = fmt.Printf("Use 'kubectl exec -it %s -n %s -- /bin/bash' to attach to it.\n",
-			cfg.PodName, cfg.Namespace)
+		_, _ = fmt.Printf("Use 'kubectl exec -it %s -n %s -- %s' to attach to it.\n",
+			cfg.PodName, cfg.Namespace, podAttachShellCommand())
 		_, _ = fmt.Printf("Use 'kubectl delete pod %s -n %s' to delete it.\n", cfg.PodName, cfg.Namespace)
 
 		return nil
 	},
+}
+
+// podAttachShellCommand returns the suggested shell command for kubectl exec.
+func podAttachShellCommand() string {
+	if Secure {
+		return "/bin/bash --rcfile /etc/bashrc_local"
+	}
+
+	return "/bin/bash"
 }
 
 func init() {

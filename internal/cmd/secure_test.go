@@ -67,4 +67,13 @@ func TestSecureFlag_PodAndDeploymentDryRun(t *testing.T) {
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "--host-network")
 	})
+
+	t.Run("attach shell suggestion uses rcfile when --secure", func(t *testing.T) {
+		resetCmdState()
+		assert.Equal(t, "/bin/bash", podAttachShellCommand())
+
+		Secure = true
+
+		assert.Equal(t, "/bin/bash --rcfile /etc/bashrc_local", podAttachShellCommand())
+	})
 }
