@@ -21,10 +21,10 @@ const (
 	// SecureDefaultMemoryLimit is the default memory limit applied by --secure when unset.
 	SecureDefaultMemoryLimit = "256Mi"
 
-	secureTmpVolumeName  = "tmp"
-	secureTmpMountPath   = "/tmp"
-	secureHomeVolumeName = "home"
-	secureHomeMountPath  = "/root"
+	secureTmpVolumeName     = "tmp"
+	secureTmpMountPath      = "/tmp"
+	secureWorkdirVolumeName = "workdir"
+	secureWorkdirMountPath  = "/workdir"
 )
 
 // ApplySecurePodConfig applies Kubernetes Restricted Pod Security Standards and
@@ -46,8 +46,8 @@ func ApplySecurePodConfig(cfg *netdrill.PodConfig) error {
 	}
 
 	ensureSecureEmptyDirMount(cfg, secureTmpVolumeName, secureTmpMountPath)
-	ensureSecureEmptyDirMount(cfg, secureHomeVolumeName, secureHomeMountPath)
-	ensureSecureHomeEnv(cfg)
+	ensureSecureEmptyDirMount(cfg, secureWorkdirVolumeName, secureWorkdirMountPath)
+	ensureSecureEnv(cfg)
 	applySecureResourceDefaults(cfg)
 
 	return nil
@@ -163,23 +163,12 @@ func ensureSecureEmptyDirMount(cfg *netdrill.PodConfig, volumeName, mountPath st
 	})
 }
 
-func ensureSecureHomeEnv(cfg *netdrill.PodConfig) {
-	if _, ok := cfg.EnvVars["HOME"]; ok {
-		return
-	}
-
-	hasRawHome := slices.ContainsFunc(cfg.RawEnvVars, func(e corev1.EnvVar) bool {
-		return e.Name == "HOME"
-	})
-	if hasRawHome {
-		return
-	}
-
+func ensureSecureEnv(cfg *netdrill.PodConfig) {
 	if cfg.EnvVars == nil {
 		cfg.EnvVars = make(map[string]string)
 	}
 
-	cfg.EnvVars["HOME"] = secureHomeMountPath
+	cfg.EnvVars["SECURE"] = "true"
 }
 
 func applySecureResourceDefaults(cfg *netdrill.PodConfig) {

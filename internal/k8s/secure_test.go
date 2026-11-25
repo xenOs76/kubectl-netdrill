@@ -42,9 +42,11 @@ func TestApplySecurePodConfig_Defaults(t *testing.T) {
 	require.NotNil(t, c.SecurityContext.Capabilities)
 	assert.Equal(t, []corev1.Capability{"ALL"}, c.SecurityContext.Capabilities.Drop)
 
-	assert.Contains(t, c.Env, corev1.EnvVar{Name: "HOME", Value: "/root"})
+	assert.Contains(t, c.Env, corev1.EnvVar{Name: "SECURE", Value: "true"})
+	assert.NotContains(t, c.Env, corev1.EnvVar{Name: "HOME", Value: "/root"})
+	assert.NotContains(t, c.Env, corev1.EnvVar{Name: "HOME", Value: "/tmp"})
 	assert.Contains(t, c.VolumeMounts, corev1.VolumeMount{Name: "tmp", MountPath: "/tmp"})
-	assert.Contains(t, c.VolumeMounts, corev1.VolumeMount{Name: "home", MountPath: "/root"})
+	assert.Contains(t, c.VolumeMounts, corev1.VolumeMount{Name: "workdir", MountPath: "/workdir"})
 	assert.Len(t, pod.Spec.Volumes, 2)
 	assert.NotNil(t, pod.Spec.Volumes[0].EmptyDir)
 	assert.NotNil(t, pod.Spec.Volumes[1].EmptyDir)
@@ -69,20 +71,21 @@ func TestApplySecurePodConfig_EdgeCases(t *testing.T) {
 		assert.Nil(t, cfg.AutomountServiceAccountToken)
 	})
 
-	t.Run("explicit resources and HOME preserved", func(t *testing.T) {
+	t.Run("explicit resources and SECURE=true", func(t *testing.T) {
 		cfg := netdrill.PodConfig{
 			CPURequest:    "250m",
 			MemoryRequest: "512Mi",
 			CPULimit:      "1",
 			MemoryLimit:   "1Gi",
-			EnvVars:       map[string]string{"HOME": "/custom"},
 		}
 		require.NoError(t, ApplySecurePodConfig(&cfg))
 		assert.Equal(t, "250m", cfg.CPURequest)
 		assert.Equal(t, "512Mi", cfg.MemoryRequest)
 		assert.Equal(t, "1", cfg.CPULimit)
 		assert.Equal(t, "1Gi", cfg.MemoryLimit)
-		assert.Equal(t, "/custom", cfg.EnvVars["HOME"])
+		assert.Equal(t, "true", cfg.EnvVars["SECURE"])
+		_, hasHome := cfg.EnvVars["HOME"]
+		assert.False(t, hasHome)
 	})
 }
 
