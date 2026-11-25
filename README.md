@@ -255,6 +255,9 @@ kubectl netdrill pod my-persistent-troubleshooter
 | `--host-network`    |       | Use the host's network namespace                     | `false`                           |
 | `--node-selector`   |       | Node labels for pod scheduling (can be used multiple times)  |                                   |
 | `--image`           | `-i`  | Container image to use                               | `ghcr.io/xenos76/netdrill:latest` |
+| `--image-pull-policy` |     | Image pull policy (`Always`, `IfNotPresent`, or `Never`) | `IfNotPresent`                |
+| `--dry-run`         |       | Print rendered manifest without sending (`none` or `client`) | `none`                    |
+| `--output`          | `-o`  | Dry-run output format (`yaml` or `json`; defaults to `yaml`) |                           |
 
 #### Examples
 
@@ -311,6 +314,13 @@ Attach to an existing persistent pod:
 kubectl exec -it my-persistent-troubleshooter -n default -- /bin/bash
 ```
 
+Preview the rendered Pod manifest in YAML or JSON without creating it:
+
+```bash
+kubectl netdrill pod my-pod --host-network --dry-run=client -o yaml
+kubectl netdrill pod my-pod --same-as deployment/backend-api --dry-run=client -o json
+```
+
 </details>
 
 ### kubectl netdrill deployment
@@ -342,6 +352,9 @@ kubectl netdrill deployment my-deployment
 | `--host-network`    |       | Use the host's network namespace                     | `false`                           |
 | `--node-selector`   |       | Node labels for pod scheduling (can be used multiple times)  |                                   |
 | `--image`           | `-i`  | Container image to use                               | `ghcr.io/xenos76/netdrill:latest` |
+| `--image-pull-policy` |     | Image pull policy (`Always`, `IfNotPresent`, or `Never`) | `IfNotPresent`                |
+| `--dry-run`         |       | Print rendered manifest without sending (`none` or `client`) | `none`                    |
+| `--output`          | `-o`  | Dry-run output format (`yaml` or `json`; defaults to `yaml`) |                           |
 
 #### Examples
 
@@ -369,6 +382,12 @@ Create a deployment cloning settings from an existing deployment with overridden
 kubectl netdrill deployment debug-api --same-as deployment/api-server --replicas 1
 ```
 
+Preview the rendered Deployment manifest without creating it:
+
+```bash
+kubectl netdrill deployment debug-api --replicas 2 --dry-run=client -o yaml
+```
+
 </details>
 
 ### kubectl netdrill debug
@@ -394,6 +413,9 @@ kubectl netdrill debug <pod-name> --target <container-name>
 | ---------- | ----- | ------------------------------------------ | --------------------------------- |
 | `--target` |       | Container name to share PID namespace with |                                   |
 | `--image`  | `-i`  | Container image to use                     | `ghcr.io/xenos76/netdrill:latest` |
+| `--image-pull-policy` | | Image pull policy (`Always`, `IfNotPresent`, or `Never`) | `IfNotPresent`    |
+| `--dry-run` |      | Print rendered Pod with ephemeral container without updating (`none` or `client`) | `none` |
+| `--output` | `-o`  | Dry-run output format (`yaml` or `json`; defaults to `yaml`) |               |
 
 #### Examples
 
@@ -408,6 +430,12 @@ container):
 
 ```bash
 kubectl netdrill debug my-app-pod --target my-app-container
+```
+
+Preview the Pod with the ephemeral container injected without mutating the cluster:
+
+```bash
+kubectl netdrill debug my-app-pod --target my-app-container --dry-run=client -o yaml
 ```
 
 </details>
