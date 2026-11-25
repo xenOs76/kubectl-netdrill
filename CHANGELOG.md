@@ -4,11 +4,6 @@
 
     add --secure flag to run, pod, and deployment commands (with MCP parity) to enforce Kubernetes Restricted Pod Security Standards and hardening defaults
 
-### Fix
-
-    mount /root from an emptyDir volume and default HOME=/root in --secure mode
-    remove --rcfile /etc/bashrc_local attach suggestion in --secure mode
-
 ## 0.3.0 (2026-11-25)
 
 ### Feat
