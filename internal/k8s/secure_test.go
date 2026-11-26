@@ -227,3 +227,99 @@ func TestApplySecurePodConfig_ResourcePairs(t *testing.T) {
 		assert.Equal(t, "64Mi", cfg.MemoryLimit)
 	})
 }
+
+func TestApplySecurePodConfig_Sysctls(t *testing.T) {
+	okCfg := netdrill.PodConfig{
+		SecurityContext: &corev1.PodSecurityContext{
+			Sysctls: []corev1.Sysctl{
+				{Name: "net.ipv4.ip_local_port_range", Value: "1024 65535"},
+			},
+		},
+	}
+	require.NoError(t, ApplySecurePodConfig(&okCfg))
+	require.Len(t, okCfg.SecurityContext.Sysctls, 1)
+	assert.Equal(t, "net.ipv4.ip_local_port_range", okCfg.SecurityContext.Sysctls[0].Name)
+
+	badCfg := netdrill.PodConfig{
+		SecurityContext: &corev1.PodSecurityContext{
+			Sysctls: []corev1.Sysctl{
+				{Name: "kernel.msgmax", Value: "65536"},
+			},
+		},
+	}
+	err := ApplySecurePodConfig(&badCfg)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "sysctl")
+}
+
+func TestApplySecurePodConfig_AppArmorProfile(t *testing.T) {
+	localhost := "k8s-app/custom"
+	cfg := netdrill.PodConfig{
+		SecurityContext: &corev1.PodSecurityContext{
+			AppArmorProfile: &corev1.AppArmorProfile{Type: corev1.AppArmorProfileTypeUnconfined},
+		},
+		ContainerSecurityContext: &corev1.SecurityContext{
+			AppArmorProfile: &corev1.AppArmorProfile{
+				Type:             corev1.AppArmorProfileTypeLocalhost,
+				LocalhostProfile: &localhost,
+			},
+		},
+	}
+	require.NoError(t, ApplySecurePodConfig(&cfg))
+	require.NotNil(t, cfg.SecurityContext.AppArmorProfile)
+	assert.Equal(t, corev1.AppArmorProfileTypeRuntimeDefault, cfg.SecurityContext.AppArmorProfile.Type)
+	require.NotNil(t, cfg.ContainerSecurityContext.AppArmorProfile)
+	assert.Equal(t, corev1.AppArmorProfileTypeLocalhost, cfg.ContainerSecurityContext.AppArmorProfile.Type)
+
+	containerUnconfined := netdrill.PodConfig{
+		ContainerSecurityContext: &corev1.SecurityContext{
+			AppArmorProfile: &corev1.AppArmorProfile{Type: corev1.AppArmorProfileTypeUnconfined},
+		},
+	}
+	require.NoError(t, ApplySecurePodConfig(&containerUnconfined))
+	assert.Nil(t, containerUnconfined.SecurityContext.AppArmorProfile)
+	aa := containerUnconfined.ContainerSecurityContext.AppArmorProfile
+	require.NotNil(t, aa)
+	assert.Equal(t, corev1.AppArmorProfileTypeRuntimeDefault, aa.Type)
+}
+
+func TestApplySecurePodConfig_SELinuxOptions(t *testing.T) {
+	okCfg := netdrill.PodConfig{
+		SecurityContext: &corev1.PodSecurityContext{
+			SELinuxOptions: &corev1.SELinuxOptions{
+				Type:  "container_t",
+				Level: "s0:c123,c456",
+			},
+		},
+		ContainerSecurityContext: &corev1.SecurityContext{
+			SELinuxOptions: &corev1.SELinuxOptions{
+				Level: "s0:c1,c2",
+			},
+		},
+	}
+	require.NoError(t, ApplySecurePodConfig(&okCfg))
+	assert.Equal(t, "container_t", okCfg.SecurityContext.SELinuxOptions.Type)
+	assert.Equal(t, "s0:c123,c456", okCfg.SecurityContext.SELinuxOptions.Level)
+	assert.Equal(t, "s0:c1,c2", okCfg.ContainerSecurityContext.SELinuxOptions.Level)
+
+	badPodUser := netdrill.PodConfig{
+		SecurityContext: &corev1.PodSecurityContext{
+			SELinuxOptions: &corev1.SELinuxOptions{User: "system_u"},
+		},
+	}
+	require.Error(t, ApplySecurePodConfig(&badPodUser))
+
+	badContainerRole := netdrill.PodConfig{
+		ContainerSecurityContext: &corev1.SecurityContext{
+			SELinuxOptions: &corev1.SELinuxOptions{Role: "system_r"},
+		},
+	}
+	require.Error(t, ApplySecurePodConfig(&badContainerRole))
+
+	badContainerType := netdrill.PodConfig{
+		ContainerSecurityContext: &corev1.SecurityContext{
+			SELinuxOptions: &corev1.SELinuxOptions{Type: "spc_t"},
+		},
+	}
+	require.Error(t, ApplySecurePodConfig(&badContainerType))
+}

@@ -40,8 +40,13 @@ func ApplySecurePodConfig(cfg *netdrill.PodConfig) error {
 		return errors.New("--secure cannot be used with --host-network")
 	}
 
-	applySecurePodSecurityContext(cfg)
-	applySecureContainerSecurityContext(cfg)
+	if err := applySecurePodSecurityContext(cfg); err != nil {
+		return err
+	}
+
+	if err := applySecureContainerSecurityContext(cfg); err != nil {
+		return err
+	}
 
 	if cfg.ServiceAccount == "" && cfg.AutomountServiceAccountToken == nil {
 		cfg.AutomountServiceAccountToken = ptr.To(false)
@@ -89,14 +94,23 @@ func ApplySecureDeploymentConfig(cfg *netdrill.DeploymentConfig) error {
 	return nil
 }
 
-func applySecurePodSecurityContext(cfg *netdrill.PodConfig) {
+func applySecurePodSecurityContext(cfg *netdrill.PodConfig) error {
 	sc := &corev1.PodSecurityContext{}
 	if cfg.SecurityContext != nil {
 		sc = cfg.SecurityContext.DeepCopy()
 	}
 
+	if err := validateSecureSysctls(sc.Sysctls); err != nil {
+		return err
+	}
+
+	if err := validateSecureSELinuxOptions(sc.SELinuxOptions); err != nil {
+		return err
+	}
+
 	sc.RunAsNonRoot = ptr.To(true)
 	sc.SeccompProfile = ensureSecureSeccompProfile(sc.SeccompProfile)
+	sc.AppArmorProfile = ensureSecureAppArmorProfile(sc.AppArmorProfile)
 
 	if sc.RunAsUser == nil || *sc.RunAsUser == 0 {
 		sc.RunAsUser = ptr.To(SecureDefaultUID)
@@ -111,12 +125,18 @@ func applySecurePodSecurityContext(cfg *netdrill.PodConfig) {
 	}
 
 	cfg.SecurityContext = sc
+
+	return nil
 }
 
-func applySecureContainerSecurityContext(cfg *netdrill.PodConfig) {
+func applySecureContainerSecurityContext(cfg *netdrill.PodConfig) error {
 	csc := &corev1.SecurityContext{}
 	if cfg.ContainerSecurityContext != nil {
 		csc = cfg.ContainerSecurityContext.DeepCopy()
+	}
+
+	if err := validateSecureSELinuxOptions(csc.SELinuxOptions); err != nil {
+		return err
 	}
 
 	csc.AllowPrivilegeEscalation = ptr.To(false)
@@ -136,8 +156,11 @@ func applySecureContainerSecurityContext(cfg *netdrill.PodConfig) {
 	}
 
 	csc.SeccompProfile = ensureSecureSeccompProfile(csc.SeccompProfile)
+	csc.AppArmorProfile = ensureSecureAppArmorProfile(csc.AppArmorProfile)
 
 	cfg.ContainerSecurityContext = csc
+
+	return nil
 }
 
 func ensureSecureSeccompProfile(p *corev1.SeccompProfile) *corev1.SeccompProfile {
@@ -147,6 +170,63 @@ func ensureSecureSeccompProfile(p *corev1.SeccompProfile) *corev1.SeccompProfile
 
 	return &corev1.SeccompProfile{
 		Type: corev1.SeccompProfileTypeRuntimeDefault,
+	}
+}
+
+func ensureSecureAppArmorProfile(p *corev1.AppArmorProfile) *corev1.AppArmorProfile {
+	if p == nil {
+		return nil
+	}
+
+	if p.Type == corev1.AppArmorProfileTypeRuntimeDefault || p.Type == corev1.AppArmorProfileTypeLocalhost {
+		return p
+	}
+
+	return &corev1.AppArmorProfile{
+		Type: corev1.AppArmorProfileTypeRuntimeDefault,
+	}
+}
+
+func validateSecureSysctls(sysctls []corev1.Sysctl) error {
+	for _, s := range sysctls {
+		switch s.Name {
+		case "kernel.shm_rmid_forced",
+			"net.ipv4.ip_local_port_range",
+			"net.ipv4.tcp_syncookies",
+			"net.ipv4.ping_group_range",
+			"net.ipv4.ip_unprivileged_port_start",
+			"net.ipv4.ip_local_reserved_ports",
+			"net.unix.max_dgram_qlen",
+			"net.ipv4.tcp_keepalive_time",
+			"net.ipv4.tcp_fin_timeout",
+			"net.ipv4.tcp_keepalive_intvl",
+			"net.ipv4.tcp_keepalive_probes":
+		default:
+			return fmt.Errorf("--secure does not allow sysctl %q", s.Name)
+		}
+	}
+
+	return nil
+}
+
+func validateSecureSELinuxOptions(opts *corev1.SELinuxOptions) error {
+	if opts == nil {
+		return nil
+	}
+
+	if opts.User != "" {
+		return fmt.Errorf("--secure does not allow seLinuxOptions.user %q", opts.User)
+	}
+
+	if opts.Role != "" {
+		return fmt.Errorf("--secure does not allow seLinuxOptions.role %q", opts.Role)
+	}
+
+	switch opts.Type {
+	case "", "container_t", "container_init_t", "container_kvm_t", "container_engine_t":
+		return nil
+	default:
+		return fmt.Errorf("--secure does not allow seLinuxOptions.type %q", opts.Type)
 	}
 }
 
