@@ -59,6 +59,8 @@ var runCmd = &cobra.Command{
 		}
 
 		opts := k8s.PodOptionsFromConfig(cfg)
+		opts.Command = cfg.Command
+		opts.Args = nil
 
 		verifiedImg, err := verifyAndPinImage(cmd.Context(), opts.Image, cmd.ErrOrStderr())
 		if err != nil {

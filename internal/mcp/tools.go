@@ -361,6 +361,12 @@ func handleRunCreate(ctx context.Context, deps *Deps, in runCreateInput) (*mcp.C
 		}
 	}
 
+	if in.Secure {
+		if err := k8s.ApplySecurePodConfig(&cfg); err != nil {
+			return nil, podCreateOutput{}, err
+		}
+	}
+
 	if len(in.Command) > 0 {
 		cfg.Command = slices.Clone(in.Command)
 	}

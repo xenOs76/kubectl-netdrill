@@ -110,3 +110,120 @@ func TestApplySecureDeploymentConfig(t *testing.T) {
 	require.Len(t, spec.Containers, 1)
 	assert.Equal(t, ptr.To(true), spec.Containers[0].SecurityContext.ReadOnlyRootFilesystem)
 }
+
+func TestApplySecurePodConfig_HardensClonedFields(t *testing.T) {
+	t.Run("replaces privileged, container runAsUser=0, and unconfined seccomp", func(t *testing.T) {
+		cfg := netdrill.PodConfig{
+			SecurityContext: &corev1.PodSecurityContext{
+				RunAsUser:      ptr.To(int64(0)),
+				SeccompProfile: &corev1.SeccompProfile{Type: corev1.SeccompProfileTypeUnconfined},
+			},
+			ContainerSecurityContext: &corev1.SecurityContext{
+				Privileged:     ptr.To(true),
+				RunAsUser:      ptr.To(int64(0)),
+				SeccompProfile: &corev1.SeccompProfile{Type: corev1.SeccompProfileTypeUnconfined},
+				Capabilities: &corev1.Capabilities{
+					Add: []corev1.Capability{"NET_ADMIN"},
+				},
+			},
+		}
+
+		require.NoError(t, ApplySecurePodConfig(&cfg))
+
+		assert.Equal(t, ptr.To(SecureDefaultUID), cfg.SecurityContext.RunAsUser)
+		assert.Equal(t, corev1.SeccompProfileTypeRuntimeDefault, cfg.SecurityContext.SeccompProfile.Type)
+
+		assert.Equal(t, ptr.To(false), cfg.ContainerSecurityContext.Privileged)
+		assert.Equal(t, ptr.To(SecureDefaultUID), cfg.ContainerSecurityContext.RunAsUser)
+		assert.Equal(t, corev1.SeccompProfileTypeRuntimeDefault, cfg.ContainerSecurityContext.SeccompProfile.Type)
+		assert.Equal(t, []corev1.Capability{"ALL"}, cfg.ContainerSecurityContext.Capabilities.Drop)
+		assert.Empty(t, cfg.ContainerSecurityContext.Capabilities.Add)
+	})
+
+	t.Run("preserves valid localhost seccomp and non-zero runAsUser", func(t *testing.T) {
+		localhost := "profiles/audit.json"
+		cfg := netdrill.PodConfig{
+			SecurityContext: &corev1.PodSecurityContext{
+				RunAsUser: ptr.To(int64(1000)),
+				SeccompProfile: &corev1.SeccompProfile{
+					Type:             corev1.SeccompProfileTypeLocalhost,
+					LocalhostProfile: &localhost,
+				},
+			},
+			ContainerSecurityContext: &corev1.SecurityContext{
+				RunAsUser: ptr.To(int64(1001)),
+				SeccompProfile: &corev1.SeccompProfile{
+					Type:             corev1.SeccompProfileTypeLocalhost,
+					LocalhostProfile: &localhost,
+				},
+			},
+		}
+
+		require.NoError(t, ApplySecurePodConfig(&cfg))
+
+		assert.Equal(t, ptr.To(int64(1000)), cfg.SecurityContext.RunAsUser)
+		assert.Equal(t, corev1.SeccompProfileTypeLocalhost, cfg.SecurityContext.SeccompProfile.Type)
+		assert.Equal(t, ptr.To(int64(1001)), cfg.ContainerSecurityContext.RunAsUser)
+		assert.Equal(t, corev1.SeccompProfileTypeLocalhost, cfg.ContainerSecurityContext.SeccompProfile.Type)
+	})
+}
+
+func TestApplySecurePodConfig_VolumeCollision(t *testing.T) {
+	t.Run("reuses matching emptyDir volume", func(t *testing.T) {
+		cfg := netdrill.PodConfig{
+			Volumes: []corev1.Volume{
+				{Name: "tmp", VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}}},
+			},
+		}
+
+		require.NoError(t, ApplySecurePodConfig(&cfg))
+		assert.Len(t, cfg.Volumes, 2) // tmp (reused) + root
+		assert.Contains(t, cfg.VolumeMounts, corev1.VolumeMount{Name: "tmp", MountPath: "/tmp"})
+	})
+
+	t.Run("allocates collision-free emptyDir when matching name is not emptyDir", func(t *testing.T) {
+		cfg := netdrill.PodConfig{
+			Volumes: []corev1.Volume{
+				{Name: "tmp", VolumeSource: corev1.VolumeSource{ConfigMap: &corev1.ConfigMapVolumeSource{}}},
+				{Name: "netdrill-tmp", VolumeSource: corev1.VolumeSource{ConfigMap: &corev1.ConfigMapVolumeSource{}}},
+			},
+			VolumeMounts: []corev1.VolumeMount{
+				{Name: "tmp", MountPath: "/etc/tmp-cfg"},
+			},
+		}
+
+		require.NoError(t, ApplySecurePodConfig(&cfg))
+		assert.Contains(t, cfg.VolumeMounts, corev1.VolumeMount{Name: "tmp", MountPath: "/etc/tmp-cfg"})
+		assert.Contains(t, cfg.VolumeMounts, corev1.VolumeMount{Name: "netdrill-tmp-1", MountPath: "/tmp"})
+		assert.Contains(t, cfg.Volumes, corev1.Volume{
+			Name:         "netdrill-tmp-1",
+			VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}},
+		})
+	})
+}
+
+func TestApplySecurePodConfig_ResourcePairs(t *testing.T) {
+	t.Run("explicit request above default limit raises limit", func(t *testing.T) {
+		cfg := netdrill.PodConfig{
+			CPURequest:    "1",
+			MemoryRequest: "512Mi",
+		}
+		require.NoError(t, ApplySecurePodConfig(&cfg))
+		assert.Equal(t, "1", cfg.CPURequest)
+		assert.Equal(t, "1", cfg.CPULimit)
+		assert.Equal(t, "512Mi", cfg.MemoryRequest)
+		assert.Equal(t, "512Mi", cfg.MemoryLimit)
+	})
+
+	t.Run("explicit limit below default request lowers request", func(t *testing.T) {
+		cfg := netdrill.PodConfig{
+			CPULimit:    "50m",
+			MemoryLimit: "64Mi",
+		}
+		require.NoError(t, ApplySecurePodConfig(&cfg))
+		assert.Equal(t, "50m", cfg.CPURequest)
+		assert.Equal(t, "50m", cfg.CPULimit)
+		assert.Equal(t, "64Mi", cfg.MemoryRequest)
+		assert.Equal(t, "64Mi", cfg.MemoryLimit)
+	})
+}

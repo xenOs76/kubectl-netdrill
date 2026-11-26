@@ -3,12 +3,15 @@ package cmd
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"net/url"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/xenos76/kubectl-netdrill/internal/k8s"
 	"github.com/xenos76/kubectl-netdrill/internal/term"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
@@ -120,4 +123,46 @@ func TestRunCmd(t *testing.T) {
 			resetCmdState()
 		})
 	}
+}
+
+func TestRunCmd_CommandAndArgs(t *testing.T) {
+	t.Run("preserves image entrypoint when command is unset", func(t *testing.T) {
+		resetCmdState()
+		defer resetCmdState()
+
+		outBuf := new(bytes.Buffer)
+		errBuf := new(bytes.Buffer)
+
+		rootCmd.SetOut(outBuf)
+		rootCmd.SetErr(errBuf)
+		rootCmd.SetArgs([]string{"run", "--dry-run=client", "-o", "json", "entry-pod"})
+
+		require.NoError(t, rootCmd.ExecuteContext(context.Background()))
+
+		var pod corev1.Pod
+		require.NoError(t, json.Unmarshal(outBuf.Bytes(), &pod))
+		require.Len(t, pod.Spec.Containers, 1)
+		assert.Empty(t, pod.Spec.Containers[0].Command)
+		assert.Empty(t, pod.Spec.Containers[0].Args)
+	})
+
+	t.Run("passes command through with empty args", func(t *testing.T) {
+		resetCmdState()
+		defer resetCmdState()
+
+		outBuf := new(bytes.Buffer)
+		errBuf := new(bytes.Buffer)
+
+		rootCmd.SetOut(outBuf)
+		rootCmd.SetErr(errBuf)
+		rootCmd.SetArgs([]string{"run", "--dry-run=client", "-o", "json", "--command", "dig,example.com", "cmd-pod"})
+
+		require.NoError(t, rootCmd.ExecuteContext(context.Background()))
+
+		var pod corev1.Pod
+		require.NoError(t, json.Unmarshal(outBuf.Bytes(), &pod))
+		require.Len(t, pod.Spec.Containers, 1)
+		assert.Equal(t, []string{"dig", "example.com"}, pod.Spec.Containers[0].Command)
+		assert.Empty(t, pod.Spec.Containers[0].Args)
+	})
 }
