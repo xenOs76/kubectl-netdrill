@@ -3,7 +3,9 @@ package k8s
 import (
 	"errors"
 	"fmt"
+	"maps"
 	"slices"
+	"strings"
 
 	"github.com/xenos76/kubectl-netdrill/internal/netdrill"
 	corev1 "k8s.io/api/core/v1"
@@ -27,6 +29,10 @@ const (
 	secureTmpMountPath   = "/tmp"
 	secureRootVolumeName = "root"
 	secureRootMountPath  = "/root"
+
+	appArmorBetaAnnotationPrefix = "container.apparmor.security.beta.kubernetes.io/"
+	appArmorBetaRuntimeDefault   = "runtime/default"
+	appArmorBetaLocalhostPrefix  = "localhost/"
 )
 
 // ApplySecurePodConfig applies Kubernetes Restricted Pod Security Standards and
@@ -47,6 +53,8 @@ func ApplySecurePodConfig(cfg *netdrill.PodConfig) error {
 	if err := applySecureContainerSecurityContext(cfg); err != nil {
 		return err
 	}
+
+	normalizeSecureAppArmorAnnotations(cfg)
 
 	if cfg.ServiceAccount == "" && cfg.AutomountServiceAccountToken == nil {
 		cfg.AutomountServiceAccountToken = ptr.To(false)
@@ -185,6 +193,43 @@ func ensureSecureAppArmorProfile(p *corev1.AppArmorProfile) *corev1.AppArmorProf
 	return &corev1.AppArmorProfile{
 		Type: corev1.AppArmorProfileTypeRuntimeDefault,
 	}
+}
+
+func normalizeSecureAppArmorAnnotations(cfg *netdrill.PodConfig) {
+	if len(cfg.Annotations) == 0 {
+		return
+	}
+
+	var cloned map[string]string
+
+	for k, v := range cfg.Annotations {
+		if !strings.HasPrefix(k, appArmorBetaAnnotationPrefix) {
+			continue
+		}
+
+		if isPermittedAppArmorAnnotation(v) {
+			continue
+		}
+
+		if cloned == nil {
+			cloned = maps.Clone(cfg.Annotations)
+		}
+
+		cloned[k] = appArmorBetaRuntimeDefault
+	}
+
+	if cloned != nil {
+		cfg.Annotations = cloned
+	}
+}
+
+func isPermittedAppArmorAnnotation(v string) bool {
+	if v == appArmorBetaRuntimeDefault {
+		return true
+	}
+
+	return strings.HasPrefix(v, appArmorBetaLocalhostPrefix) &&
+		len(v) > len(appArmorBetaLocalhostPrefix)
 }
 
 func validateSecureSysctls(sysctls []corev1.Sysctl) error {

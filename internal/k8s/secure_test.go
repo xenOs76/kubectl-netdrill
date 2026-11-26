@@ -281,6 +281,22 @@ func TestApplySecurePodConfig_AppArmorProfile(t *testing.T) {
 	aa := containerUnconfined.ContainerSecurityContext.AppArmorProfile
 	require.NotNil(t, aa)
 	assert.Equal(t, corev1.AppArmorProfileTypeRuntimeDefault, aa.Type)
+
+	annCfg := netdrill.PodConfig{
+		Annotations: map[string]string{
+			appArmorBetaAnnotationPrefix + "app":       "unconfined",
+			appArmorBetaAnnotationPrefix + "sidecar":   "runtime/default",
+			appArmorBetaAnnotationPrefix + "custom":    "localhost/my-profile",
+			appArmorBetaAnnotationPrefix + "malformed": "localhost/",
+			"custom.io/keep":                           "value",
+		},
+	}
+	require.NoError(t, ApplySecurePodConfig(&annCfg))
+	assert.Equal(t, "runtime/default", annCfg.Annotations[appArmorBetaAnnotationPrefix+"app"])
+	assert.Equal(t, "runtime/default", annCfg.Annotations[appArmorBetaAnnotationPrefix+"sidecar"])
+	assert.Equal(t, "localhost/my-profile", annCfg.Annotations[appArmorBetaAnnotationPrefix+"custom"])
+	assert.Equal(t, "runtime/default", annCfg.Annotations[appArmorBetaAnnotationPrefix+"malformed"])
+	assert.Equal(t, "value", annCfg.Annotations["custom.io/keep"])
 }
 
 func TestApplySecurePodConfig_SELinuxOptions(t *testing.T) {
