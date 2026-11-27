@@ -48,6 +48,8 @@ var (
 	CosignIdentity string
 	// CosignOIDCIssuer is the expected OIDC issuer URL or regexp for keyless OIDC verification.
 	CosignOIDCIssuer string
+	// Secure applies Kubernetes Restricted Pod Security Standards and hardening defaults.
+	Secure bool
 )
 
 var rootCmd = &cobra.Command{

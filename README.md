@@ -180,6 +180,7 @@ kubectl netdrill run my-troubleshooter
 | Flag              | Short | Description                                                    | Default                           |
 | ----------------- | ----- | -------------------------------------------------------------- | --------------------------------- |
 | `--host-network`  |       | Use the host's network namespace                               | `false`                           |
+| `--secure`        |       | Apply Restricted Pod Security Standards & hardening defaults   | `false`                           |
 | `--command`       |       | Command to run in the container                                | shell (interactive)               |
 | `--node-selector` |       | Node labels for pod scheduling (can be used multiple times)    |                                   |
 | `--image`         | `-i`  | Container image to use                                         | `ghcr.io/xenos76/netdrill:latest` |
@@ -257,6 +258,7 @@ kubectl netdrill pod my-persistent-troubleshooter
 | `--port`            |       | Ports to expose on the container (e.g. `80`; can be used multiple times) |                 |
 | `--env`             |       | Environment variables (e.g. `KEY=VALUE`; can be used multiple times) |                      |
 | `--host-network`    |       | Use the host's network namespace                     | `false`                           |
+| `--secure`          |       | Apply Restricted Pod Security Standards & hardening defaults | `false`                   |
 | `--node-selector`   |       | Node labels for pod scheduling (can be used multiple times)  |                                   |
 | `--image`           | `-i`  | Container image to use                               | `ghcr.io/xenos76/netdrill:latest` |
 | `--image-pull-policy` |     | Image pull policy (`Always`, `IfNotPresent`, or `Never`) | `IfNotPresent`                |
@@ -316,6 +318,12 @@ kubectl-netdrill pod netdrill-iam-pod \
     --service-account aws-client
 ```
 
+Create a hardened pod compliant with Kubernetes Restricted Pod Security Standards (runs as UID `65532` with `readOnlyRootFilesystem: true`, writable `emptyDir` mounts at `/tmp` and `/root`, and `HOME=/root`):
+
+```bash
+kubectl netdrill pod sec-pod --secure
+```
+
 Attach to an existing persistent pod:
 
 ```bash
@@ -358,6 +366,7 @@ kubectl netdrill deployment my-deployment
 | `--port`            |       | Ports to expose on the container (e.g. `80`; can be used multiple times) |                 |
 | `--env`             |       | Environment variables (e.g. `KEY=VALUE`; can be used multiple times) |                      |
 | `--host-network`    |       | Use the host's network namespace                     | `false`                           |
+| `--secure`          |       | Apply Restricted Pod Security Standards & hardening defaults | `false`                   |
 | `--node-selector`   |       | Node labels for pod scheduling (can be used multiple times)  |                                   |
 | `--image`           | `-i`  | Container image to use                               | `ghcr.io/xenos76/netdrill:latest` |
 | `--image-pull-policy` |     | Image pull policy (`Always`, `IfNotPresent`, or `Never`) | `IfNotPresent`                |

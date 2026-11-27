@@ -35,6 +35,8 @@ type podCreateInput struct {
 	Ports []int32 `json:"ports,omitempty" jsonschema:"Container ports to expose"`
 	// Use the host network namespace.
 	HostNetwork bool `json:"hostNetwork,omitempty" jsonschema:"Use host networking"`
+	// Apply Kubernetes Restricted Pod Security Standards and hardening defaults.
+	Secure bool `json:"secure,omitempty" jsonschema:"Apply Restricted PSS security hardening"`
 	// Additional labels on the pod.
 	Labels map[string]string `json:"labels,omitempty" jsonschema:"Additional labels"`
 	// Workload (pod or deployment) to clone settings from.
@@ -80,6 +82,8 @@ type deploymentCreateInput struct {
 	Ports []int32 `json:"ports,omitempty" jsonschema:"Container ports to expose"`
 	// Use the host network namespace.
 	HostNetwork bool `json:"hostNetwork,omitempty" jsonschema:"Use host networking"`
+	// Apply Kubernetes Restricted Pod Security Standards and hardening defaults.
+	Secure bool `json:"secure,omitempty" jsonschema:"Apply Restricted PSS security hardening"`
 	// Replica count (default 1).
 	Replicas *int32 `json:"replicas,omitempty" jsonschema:"Number of replicas (default 1)"`
 	// Additional labels on the Deployment and pod template.
@@ -318,6 +322,12 @@ func handlePodCreate(ctx context.Context, deps *Deps, in podCreateInput) (*mcp.C
 		}
 	}
 
+	if in.Secure {
+		if err := k8s.ApplySecurePodConfig(&cfg); err != nil {
+			return nil, podCreateOutput{}, err
+		}
+	}
+
 	opts := k8s.PodOptionsFromConfig(cfg)
 
 	_, err := k8s.CreatePod(ctx, deps.Client, opts)
@@ -347,6 +357,12 @@ func handleRunCreate(ctx context.Context, deps *Deps, in runCreateInput) (*mcp.C
 
 		ns, err = applyMCPPodSameAs(ctx, deps, in.podCreateInput, ns, &cfg)
 		if err != nil {
+			return nil, podCreateOutput{}, err
+		}
+	}
+
+	if in.Secure {
+		if err := k8s.ApplySecurePodConfig(&cfg); err != nil {
 			return nil, podCreateOutput{}, err
 		}
 	}
@@ -510,6 +526,12 @@ func handleDeploymentCreate(
 
 		ns, err = applyMCPDeploymentSameAs(ctx, deps, in, ns, &cfg)
 		if err != nil {
+			return nil, podCreateOutput{}, err
+		}
+	}
+
+	if in.Secure {
+		if err := k8s.ApplySecureDeploymentConfig(&cfg); err != nil {
 			return nil, podCreateOutput{}, err
 		}
 	}

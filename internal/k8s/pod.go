@@ -89,6 +89,8 @@ type PodOptions struct {
 	SecurityContext *corev1.PodSecurityContext
 	// ContainerSecurityContext specifies container-level security context.
 	ContainerSecurityContext *corev1.SecurityContext
+	// AutomountServiceAccountToken controls whether the ServiceAccount token is mounted.
+	AutomountServiceAccountToken *bool
 	// PriorityClassName specifies the priority class for scheduling.
 	PriorityClassName string
 	// Volumes are volumes mounted by the pod.
@@ -163,18 +165,19 @@ func BuildPod(opts PodOptions) (*corev1.Pod, error) {
 					SecurityContext: opts.ContainerSecurityContext,
 				},
 			},
-			RestartPolicy:             corev1.RestartPolicyNever,
-			HostNetwork:               opts.HostNetwork,
-			NodeSelector:              opts.NodeSelector,
-			ServiceAccountName:        opts.ServiceAccount,
-			Affinity:                  opts.Affinity,
-			Tolerations:               opts.Tolerations,
-			TopologySpreadConstraints: opts.TopologySpreadConstraints,
-			DNSConfig:                 opts.DNSConfig,
-			DNSPolicy:                 opts.DNSPolicy,
-			SecurityContext:           opts.SecurityContext,
-			PriorityClassName:         opts.PriorityClassName,
-			Volumes:                   opts.Volumes,
+			RestartPolicy:                corev1.RestartPolicyNever,
+			HostNetwork:                  opts.HostNetwork,
+			NodeSelector:                 opts.NodeSelector,
+			ServiceAccountName:           opts.ServiceAccount,
+			AutomountServiceAccountToken: opts.AutomountServiceAccountToken,
+			Affinity:                     opts.Affinity,
+			Tolerations:                  opts.Tolerations,
+			TopologySpreadConstraints:    opts.TopologySpreadConstraints,
+			DNSConfig:                    opts.DNSConfig,
+			DNSPolicy:                    opts.DNSPolicy,
+			SecurityContext:              opts.SecurityContext,
+			PriorityClassName:            opts.PriorityClassName,
+			Volumes:                      opts.Volumes,
 		},
 	}
 

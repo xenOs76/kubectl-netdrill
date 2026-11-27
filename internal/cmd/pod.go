@@ -78,6 +78,12 @@ var podCmd = &cobra.Command{
 			}
 		}
 
+		if Secure {
+			if err := k8s.ApplySecurePodConfig(&cfg); err != nil {
+				return err
+			}
+		}
+
 		opts := k8s.PodOptionsFromConfig(cfg)
 
 		verifiedImg, err := verifyAndPinImage(ctx, opts.Image, cmd.ErrOrStderr())
@@ -132,6 +138,8 @@ func init() {
 	podCmd.Flags().StringToStringVar(&EnvVars, "env", map[string]string{},
 		"Environment variables (e.g., --env KEY=VALUE; can be used multiple times)")
 	podCmd.Flags().BoolVar(&HostNetwork, "host-network", false, "Use host networking")
+	podCmd.Flags().BoolVar(&Secure, "secure", false,
+		"Apply Kubernetes Restricted Pod Security Standards and hardening defaults")
 	podCmd.Flags().StringToStringVar(&NodeSelector, "node-selector", map[string]string{},
 		"node labels to use as a node selector for scheduling the netdrill pod "+
 			"(e.g. kubernetes.io/os=linux; can be used multiple times)")

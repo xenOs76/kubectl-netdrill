@@ -682,3 +682,75 @@ func TestHandleDeploymentCreate_SameAs_WithLabels(t *testing.T) {
 	assert.Equal(t, "override", deploy.Labels["tier"])
 	assert.NotContains(t, deploy.Labels, "team")
 }
+
+func TestHandleRunCreate_Secure(t *testing.T) {
+	t.Parallel()
+
+	ctx := t.Context()
+
+	t.Run("secure=true hardens pod", func(t *testing.T) {
+		t.Parallel()
+
+		deps := testDeps(fake.NewSimpleClientset())
+
+		_, _, err := handleRunCreate(ctx, deps, runCreateInput{
+			podCreateInput: podCreateInput{
+				PodName: "secure-run",
+				Secure:  true,
+			},
+			Command: []string{"echo", "ok"},
+		})
+		require.NoError(t, err)
+
+		pod, err := deps.Client.CoreV1().Pods("default").Get(ctx, "secure-run", metav1.GetOptions{})
+		require.NoError(t, err)
+		require.NotNil(t, pod.Spec.SecurityContext)
+		require.NotNil(t, pod.Spec.SecurityContext.RunAsNonRoot)
+		assert.True(t, *pod.Spec.SecurityContext.RunAsNonRoot)
+
+		csc := pod.Spec.Containers[0].SecurityContext
+		require.NotNil(t, csc)
+		require.NotNil(t, csc.AllowPrivilegeEscalation)
+		assert.False(t, *csc.AllowPrivilegeEscalation)
+		require.NotNil(t, csc.ReadOnlyRootFilesystem)
+		assert.True(t, *csc.ReadOnlyRootFilesystem)
+		assert.Equal(t, []string{"echo", "ok"}, pod.Spec.Containers[0].Command)
+	})
+
+	t.Run("secure=true rejects hostNetwork", func(t *testing.T) {
+		t.Parallel()
+
+		deps := testDeps(fake.NewSimpleClientset())
+
+		_, _, err := handleRunCreate(ctx, deps, runCreateInput{
+			podCreateInput: podCreateInput{
+				PodName:     "secure-hostnet-run",
+				Secure:      true,
+				HostNetwork: true,
+			},
+		})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "host-network")
+	})
+
+	t.Run("secure=false leaves configuration unchanged", func(t *testing.T) {
+		t.Parallel()
+
+		deps := testDeps(fake.NewSimpleClientset())
+
+		_, _, err := handleRunCreate(ctx, deps, runCreateInput{
+			podCreateInput: podCreateInput{
+				PodName:     "unsecured-run",
+				Secure:      false,
+				HostNetwork: true,
+			},
+		})
+		require.NoError(t, err)
+
+		pod, err := deps.Client.CoreV1().Pods("default").Get(ctx, "unsecured-run", metav1.GetOptions{})
+		require.NoError(t, err)
+		assert.True(t, pod.Spec.HostNetwork)
+		assert.Nil(t, pod.Spec.SecurityContext)
+		assert.Nil(t, pod.Spec.Containers[0].SecurityContext)
+	})
+}

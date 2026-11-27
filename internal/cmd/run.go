@@ -9,6 +9,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/xenos76/kubectl-netdrill/internal/k8s"
+	"github.com/xenos76/kubectl-netdrill/internal/netdrill"
 	"github.com/xenos76/kubectl-netdrill/internal/term"
 )
 
@@ -41,7 +42,7 @@ var runCmd = &cobra.Command{
 			return fmt.Errorf("getting namespace: %w", err)
 		}
 
-		opts := k8s.PodOptions{
+		cfg := netdrill.PodConfig{
 			Namespace:       namespace,
 			PodName:         podName,
 			Image:           Image,
@@ -50,6 +51,16 @@ var runCmd = &cobra.Command{
 			NodeSelector:    NodeSelector,
 			Command:         Command,
 		}
+
+		if Secure {
+			if err := k8s.ApplySecurePodConfig(&cfg); err != nil {
+				return err
+			}
+		}
+
+		opts := k8s.PodOptionsFromConfig(cfg)
+		opts.Command = cfg.Command
+		opts.Args = nil
 
 		verifiedImg, err := verifyAndPinImage(cmd.Context(), opts.Image, cmd.ErrOrStderr())
 		if err != nil {
@@ -134,6 +145,8 @@ func init() {
 
 	runCmd.Flags().StringSliceVar(&Command, "command", nil, "Command to run in the container")
 	runCmd.Flags().BoolVar(&HostNetwork, "host-network", false, "Use host networking")
+	runCmd.Flags().BoolVar(&Secure, "secure", false,
+		"Apply Kubernetes Restricted Pod Security Standards and hardening defaults")
 	runCmd.Flags().StringToStringVar(&NodeSelector, "node-selector", map[string]string{},
 		"node labels to use as a node selector for scheduling the netdrill pod "+
 			"(e.g. kubernetes.io/os=linux; can be used multiple times)")

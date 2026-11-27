@@ -1,3 +1,16 @@
+## 0.3.1 (2026-11-26)
+
+### Feat
+
+    add --secure flag to run, pod, and deployment commands (with MCP parity) to enforce Kubernetes Restricted Pod Security Standards and hardening defaults
+    suggest /bin/bash --rcfile /etc/bashrc_local when attaching to --secure pods
+
+### Fix
+
+    mount writable emptyDir volumes at /tmp and /root and export SECURE=true and HOME=/root under --secure
+    harden cloned security contexts (privileged, runAsUser=0, seccomp, sysctls, AppArmor, SELinux), avoid non-emptyDir volume collisions, and pair CPU/memory resource defaults
+    apply --secure hardening in MCP netdrill_run_create and preserve image entrypoint/empty args in run command
+
 ## 0.3.0 (2026-11-25)
 
 ### Feat
